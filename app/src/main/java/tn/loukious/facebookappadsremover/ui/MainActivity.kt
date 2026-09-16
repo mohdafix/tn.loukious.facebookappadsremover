@@ -10,6 +10,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import tn.loukious.facebookappadsremover.R
 import tn.loukious.facebookappadsremover.core.SessionBackup
@@ -72,9 +73,11 @@ class MainActivity : AppCompatActivity() {
                 addToggleRow(togglesList, toggle)
             }
             // Non-toggle controls that live inside their feature's section.
-            when (section.title) {
-                "Feed filters" -> addKeywordInput(togglesList)
-                "Account" -> addSessionButtons(togglesList)
+            when (section.extra) {
+                SectionExtra.KEYWORDS -> addKeywordInput(togglesList)
+                SectionExtra.SESSION -> addSessionButtons(togglesList)
+                SectionExtra.LAUNCHER -> addLauncherIconRow(togglesList)
+                SectionExtra.NONE -> {}
             }
         }
 
@@ -272,6 +275,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun addToggleRow(parent: ViewGroup, spec: ToggleSpec) {
+        val switch = buildToggleRow(parent, spec.title, spec.subtitle)
+        switch.isChecked = spec.default
+        switch.isEnabled = false // until the service binds
+        switch.setOnCheckedChangeListener { _, checked ->
+            if (resyncing) return@setOnCheckedChangeListener
+            prefs?.edit()?.putBoolean(spec.key, checked)?.apply()
+        }
+        rows[spec.key] = switch
+    }
+
+    /**
+     * The row layout every switch on this screen uses: title + subtitle on the
+     * left, switch on the right, whole row as the click target (the switch
+     * itself is a small target). Callers own the switch's initial state,
+     * enabled state and listener.
+     */
+    private fun buildToggleRow(parent: ViewGroup, title: String, subtitle: String): Switch {
         val row = LinearLayout(this)
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
@@ -281,31 +301,76 @@ class MainActivity : AppCompatActivity() {
         text.orientation = LinearLayout.VERTICAL
         text.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
 
-        val title = TextView(this)
-        title.text = spec.title
-        title.textSize = 16f
-        text.addView(title)
+        val titleView = TextView(this)
+        titleView.text = title
+        titleView.textSize = 16f
+        text.addView(titleView)
 
-        val subtitle = TextView(this)
-        subtitle.text = spec.subtitle
-        subtitle.textSize = 13f
-        subtitle.setPadding(0, dp(2), 0, 0)
-        text.addView(subtitle)
+        val subtitleView = TextView(this)
+        subtitleView.text = subtitle
+        subtitleView.textSize = 13f
+        subtitleView.setPadding(0, dp(2), 0, 0)
+        text.addView(subtitleView)
         row.addView(text)
 
         val switch = Switch(this)
-        switch.isChecked = spec.default
-        switch.isEnabled = false // until the service binds
-        switch.setOnCheckedChangeListener { _, checked ->
-            if (resyncing) return@setOnCheckedChangeListener
-            prefs?.edit()?.putBoolean(spec.key, checked)?.apply()
-        }
-        rows[spec.key] = switch
         row.addView(switch)
 
         // Whole row toggles, not just the small switch target.
         row.setOnClickListener { if (switch.isEnabled) switch.toggle() }
         parent.addView(row)
+        return switch
+    }
+
+    /**
+     * Launcher-icon switch (ui.LauncherIcon). The odd one out on this screen:
+     * its value lives in PackageManager's component state rather than the
+     * framework's remote preferences, so it needs no service and is enabled
+     * immediately instead of waiting for the bind.
+     *
+     * Hiding is confirmed first, because the icon is this app's only entry
+     * point — there is no second screen to fall back to.
+     */
+    private fun addLauncherIconRow(parent: ViewGroup) {
+        val switch = buildToggleRow(
+            parent,
+            "Show launcher icon",
+            "Hide this app's icon from the launcher. Everything keeps working — reopen this screen from the Xposed module list, or with the adb command shown before it's hidden",
+        )
+        switch.isChecked = LauncherIcon.isVisible(this)
+        switch.isEnabled = true
+
+        // Reverting from inside the listener re-enters it; this is the same
+        // guard the prefs switches use via `resyncing`.
+        var reverting = false
+        fun revert() {
+            reverting = true
+            switch.isChecked = true
+            reverting = false
+        }
+
+        switch.setOnCheckedChangeListener { _, checked ->
+            if (reverting) return@setOnCheckedChangeListener
+            if (checked) {
+                LauncherIcon.setVisible(this, true)
+                return@setOnCheckedChangeListener
+            }
+            AlertDialog.Builder(this)
+                .setTitle("Hide the launcher icon?")
+                .setMessage(
+                    "The icon disappears from your app drawer. Facebook keeps working, and so do its hooks.\n\n" +
+                        "To open this screen again:\n" +
+                        "•  Xposed/Vector → Modules → Facebook App Ads Remover → open settings\n" +
+                        "•  adb shell am start -n tn.loukious.facebookappadsremover/.ui.MainActivity"
+                )
+                // Both the button and a back/outside dismissal must put the
+                // switch back, or it would read "hidden" while the icon is
+                // still in the drawer.
+                .setNegativeButton("Cancel") { _, _ -> revert() }
+                .setOnCancelListener { revert() }
+                .setPositiveButton("Hide") { _, _ -> LauncherIcon.setVisible(this, false) }
+                .show()
+        }
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density + 0.5f).toInt()

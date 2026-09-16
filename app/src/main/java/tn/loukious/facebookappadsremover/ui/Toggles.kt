@@ -7,6 +7,11 @@ import tn.loukious.facebookappadsremover.core.Settings
  * sync with core.Settings (which documents the original-mod pref each one
  * mirrors). Subtitles record the hook-level effect, so the cost of each
  * switch is visible where it's flipped.
+ *
+ * A section may also carry non-toggle controls, declared through [extra]. That
+ * is a typed field rather than a match on [ToggleSection.title] because the
+ * title is display text: the session buttons were dispatched on the literal
+ * "Account", and when no such section existed the code silently never ran.
  */
 data class ToggleSpec(
     val key: String,
@@ -15,7 +20,32 @@ data class ToggleSpec(
     val default: Boolean,
 )
 
-data class ToggleSection(val title: String, val toggles: List<ToggleSpec>)
+/**
+ * Non-toggle controls rendered inside a section, below its switches. [NONE] is
+ * the common case: a section that is only switches.
+ */
+enum class SectionExtra {
+    NONE,
+
+    /** Free-text keyword list for the feed filter. */
+    KEYWORDS,
+
+    /** Session export/import buttons. */
+    SESSION,
+
+    /**
+     * Launcher-icon switch. Module-local rather than a hook toggle — its value
+     * lives in PackageManager's component state, so it works without the
+     * framework service.
+     */
+    LAUNCHER,
+}
+
+data class ToggleSection(
+    val title: String,
+    val toggles: List<ToggleSpec>,
+    val extra: SectionExtra = SectionExtra.NONE,
+)
 
 val TOGGLE_SECTIONS: List<ToggleSection> = listOf(
     ToggleSection("Ads", listOf(
@@ -79,7 +109,7 @@ val TOGGLE_SECTIONS: List<ToggleSection> = listOf(
             "Kills revisit/warm-start/foreground/force refresh on the News Feed (Beta)",
             false,
         ),
-    )),
+    ), SectionExtra.KEYWORDS),
     ToggleSection("Stories", listOf(
         ToggleSpec(Settings.STORIES_HIDE_SEEN, "View stories without marking seen", "Blocks the seen-reporting controller so the server never learns you watched", false),
         ToggleSpec(
@@ -131,4 +161,8 @@ val TOGGLE_SECTIONS: List<ToggleSection> = listOf(
         ToggleSpec(Settings.VIDEO_RESUME, "Resume video position", "Seek back to the saved position when a video is re-opened", true),
         ToggleSpec(Settings.VIDEO_BACKGROUND, "Background playback", "Keep the tracked video playing while the app is backgrounded (no floating window)", false),
     )),
+    // No toggles of its own: the export/import buttons are the whole section.
+    ToggleSection("Account", emptyList(), SectionExtra.SESSION),
+    // Module-local rather than a hook toggle — see SectionExtra.LAUNCHER.
+    ToggleSection("Module", emptyList(), SectionExtra.LAUNCHER),
 )

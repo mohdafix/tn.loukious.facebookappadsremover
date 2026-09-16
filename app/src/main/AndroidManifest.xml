@@ -22,12 +22,41 @@
 
         <activity
             android:name=".ui.MainActivity"
-            android:exported="true">
+            android:exported="true" />
+
+        <!-- Drawer entry. Deliberately an alias rather than an intent-filter on
+             the activity: ui.LauncherIcon hides the icon by disabling this
+             component, which leaves MainActivity exported and startable by
+             explicit intent — the recovery path when the icon is gone.
+             Disabling the activity itself would make it unstartable. -->
+        <activity-alias
+            android:name=".ui.LauncherAlias"
+            android:targetActivity=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/module_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <!-- Always enabled, never listed by a launcher (launchers query
+             CATEGORY_LAUNCHER explicitly). PackageManager
+             .getLaunchIntentForPackage() resolves CATEGORY_INFO before
+             CATEGORY_LAUNCHER, so this keeps the package's front door
+             resolvable while the drawer icon is hidden — the Xposed module
+             list opens a module's settings through that call, and nothing
+             else in this app starts MainActivity. -->
+        <activity-alias
+            android:name=".ui.InfoAlias"
+            android:targetActivity=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/module_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.INFO" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- Session export/import results from the Facebook process
              (core.SessionBackup). Manifest-registered so it also works when

@@ -1,6 +1,8 @@
 package tn.loukious.facebookappadsremover.hooks
 
 import android.content.Context
+import android.os.Build
+import tn.loukious.facebookappadsremover.BuildConfig
 import tn.loukious.facebookappadsremover.core.AdTargets
 import tn.loukious.facebookappadsremover.core.HookAction
 import tn.loukious.facebookappadsremover.core.HookTarget
@@ -43,6 +45,65 @@ object AdFilterHook {
 
     /** Banner-scan class cache — internal state, kept in the FB process. */
     private const val BANNER_CACHE_NAME = "fbar_prefs_banner"
+    private const val KEY_BANNER_CLASSES = "cached_banner_classes"
+
+    /**
+     * Version stamps for the banner class cache.
+     *
+     * The cached names are obfuscated members of the host build, so they are
+     * only meaningful for the exact Facebook build that produced them — that is
+     * [KEY_BANNER_HOST_VERSION]. The scan's own semantics change with the
+     * module, which is precisely how a poisoned class set (the SoLoader entry —
+     * see LOADER_INFRA_PREFIXES) reached a shipped cache and kept being reused:
+     * the cache was written once and then only ever read, so nothing could
+     * revise it — that is [KEY_BANNER_MODULE_VERSION].
+     *
+     * Either stamp moving marks the cache stale. A stale cache is rebuilt only
+     * when a DexKit bridge is available on that launch; otherwise the old names
+     * are swept as-is and the stamps are left stale, so the rebuild lands on the
+     * next bridge-available launch instead of being skipped forever.
+     */
+    private const val KEY_BANNER_HOST_VERSION = "cached_banner_host_version"
+    private const val KEY_BANNER_MODULE_VERSION = "cached_banner_module_version"
+
+    /**
+     * Classes and members that must never be swept, whatever an anchor
+     * resolves to.
+     *
+     * `com.facebook.soloader.SoLoader` holds the merged-native-library dispatch
+     * table, which lists every native library name in the app — including
+     * ad-related ones such as `libmailboxinthreadadcontextbannerjni.so`. So
+     * SoLoader *references* the `mailboxinthreadadcontextbannerjni` banner
+     * anchor, and its `loadLibrary` / `loadLibraryUnsafe` overloads return
+     * boolean, so the banner sweep below swept them. `BlockFalseHook` never
+     * calls the original, so no merged library ever had its `JNI_OnLoad`
+     * invoked: every `initHybrid` threw UnsatisfiedLinkError and Facebook could
+     * not start at all (reported 2026-09-16; reproduced on 578.0.0.40.75 by
+     * clearing app data, which rebuilt the banner cache).
+     *
+     * The class list is cached and only rewritten when empty, so a poisoned
+     * cache would keep killing the app on every launch. This guard is what
+     * makes such a cache harmless, and what stops a future anchor from
+     * re-introducing the same failure.
+     */
+    private val LOADER_INFRA_PREFIXES = listOf("com.facebook.soloader.")
+    private val LOADER_INFRA_METHODS = setOf("loadLibrary", "loadLibraryUnsafe")
+
+    /** Name-only form — scan results are filtered before the classes load. */
+    private fun isLoaderInfra(name: String): Boolean =
+        LOADER_INFRA_PREFIXES.any { name.startsWith(it) }
+
+    /**
+     * Host (Facebook) versionCode — the identity of the build whose obfuscated
+     * member names the banner cache holds. Deliberately the same key and the
+     * same -1 sentinel as MethodCache, so the banner cache and the discovery
+     * cache invalidate on the same Facebook update.
+     */
+    private fun hostVersionCode(context: Context): Int = runCatching {
+        val pi = context.packageManager.getPackageInfo(context.packageName, 0)
+        if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode.toInt()
+        else @Suppress("DEPRECATION") pi.versionCode
+    }.getOrDefault(-1)
 
     /** The Facebook app classloader — module code can't see secondary-dex classes otherwise. */
     @Volatile
@@ -73,6 +134,10 @@ object AdFilterHook {
                 // contract NPEs, null event names in logging). Never hook them.
                 if (isStringDispatchTable(m)) {
                     L.w(TAG, "skipping string-table method ${target.key}: ${m.declaringClass.name}.${m.name}/${m.parameterCount}")
+                    continue
+                }
+                if (isLoaderInfra(m.declaringClass.name) || m.name in LOADER_INFRA_METHODS) {
+                    L.w(TAG, "skipping loader infra ${target.key}: ${m.declaringClass.name}.${m.name}/${m.parameterCount}")
                     continue
                 }
                 try {
@@ -118,20 +183,41 @@ object AdFilterHook {
      * declared method that returns boolean and takes at least one param,
      * replacing it with false. Found class names are cached in prefs
      * ('cached_banner_classes' in the mod) so later launches skip the scan.
+     *
+     * Unlike the mod's cache, this one is stamped with the host and module
+     * versions it was built from and is rebuilt when either moves — see
+     * KEY_BANNER_HOST_VERSION. Without that, a class set discovered on an older
+     * Facebook build is reused verbatim forever: Facebook's obfuscated names
+     * drift every release, so the stale names stop resolving and the banner
+     * filter silently degrades to doing nothing, with no way to notice or
+     * recover short of clearing app data.
      */
     fun installBannerScan(module: XposedInterface, bridge: DexKitBridge?, classLoader: ClassLoader, context: Context) {
         val cache = context.getSharedPreferences(BANNER_CACHE_NAME, Context.MODE_PRIVATE)
-        val cached: Set<String> = cache.getStringSet("cached_banner_classes", emptySet()).orEmpty()
+        val cached: Set<String> = cache.getStringSet(KEY_BANNER_CLASSES, emptySet()).orEmpty()
+        val hostVersion = hostVersionCode(context)
+        val moduleVersion = BuildConfig.VERSION_CODE
+        val fresh = cached.isNotEmpty() &&
+            cache.getInt(KEY_BANNER_HOST_VERSION, -1) == hostVersion &&
+            cache.getInt(KEY_BANNER_MODULE_VERSION, -1) == moduleVersion
 
-        val classNames: Set<String> = if (cached.isNotEmpty()) {
-            L.i(TAG, "Banner scan: using ${cached.size} cached class(es)")
+        val classNames: Set<String> = if (fresh) {
+            L.i(TAG, "Banner scan: using ${cached.size} cached class(es) (fb=$hostVersion module=$moduleVersion)")
             cached
         } else if (bridge == null) {
-            // Cache-hit launch path: no DexKit bridge. The class set was
-            // populated on first launch; if prefs were wiped, the next full
-            // discovery pass rebuilds it.
-            L.w(TAG, "Banner scan: no cached classes and no bridge — skipping")
-            return
+            // Cache-hit launch path: no DexKit bridge, so a stale set cannot be
+            // rebuilt on this launch. Sweeping the old names still beats no
+            // banner coverage at all — a name that no longer exists just fails
+            // Class.forName below and is skipped — and the loader guard makes a
+            // poisoned entry harmless. The stamps are left stale, so the first
+            // later launch that does have a bridge rebuilds the set; wiping it
+            // here would strand banner coverage until FB data was cleared.
+            if (cached.isEmpty()) {
+                L.w(TAG, "Banner scan: no cached classes and no bridge — skipping")
+                return
+            }
+            L.w(TAG, "Banner scan: ${cached.size} stale class(es) (fb=$hostVersion module=$moduleVersion), no bridge — using them, rebuild deferred")
+            cached
         } else {
             val found = sortedSetOf<String>()
             for (anchor in AdTargets.bannerAnchors) {
@@ -147,12 +233,19 @@ object AdFilterHook {
                     L.w(TAG, "banner anchor query failed: $anchor", t)
                     null
                 } ?: continue
-                for (c in hits) found.add(c.name)
+                for (c in hits) {
+                    if (isLoaderInfra(c.name)) continue
+                    found.add(c.name)
+                }
                 if (found.size >= MAX_BANNER_CLASSES) break
             }
             L.i(TAG, "Banner scan: found ${found.size} class(es)")
             if (found.isNotEmpty()) {
-                cache.edit().putStringSet("cached_banner_classes", found).apply()
+                cache.edit()
+                    .putStringSet(KEY_BANNER_CLASSES, found)
+                    .putInt(KEY_BANNER_HOST_VERSION, hostVersion)
+                    .putInt(KEY_BANNER_MODULE_VERSION, moduleVersion)
+                    .apply()
             }
             found
         }
@@ -160,6 +253,12 @@ object AdFilterHook {
         var classesHooked = 0
         var methodsHooked = 0
         for (name in classNames) {
+            // See LOADER_INFRA_PREFIXES: never sweep the native library loader,
+            // even when it comes out of a cache written before this guard.
+            if (isLoaderInfra(name)) {
+                L.w(TAG, "banner scan: refusing to sweep loader infra $name")
+                continue
+            }
             val cls = runCatching { Class.forName(name, false, classLoader) }.getOrNull() ?: continue
             try {
                 var hookedInClass = 0
@@ -173,6 +272,9 @@ object AdFilterHook {
                     // app-wide (manifested as NPEs deep in event logging).
                     if (m.name == "equals" && m.parameterCount == 1) continue
                     if (m.isSynthetic || m.isBridge) continue
+                    // Belt and braces: whatever class an anchor lands on, the
+                    // native loader's entry points are never replaced.
+                    if (m.name in LOADER_INFRA_METHODS) continue
                     try {
                         module.hook(m).intercept(BlockFalseHook)
                         methodsHooked++; hookedInClass++

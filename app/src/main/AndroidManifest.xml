@@ -40,13 +40,17 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Always enabled, never listed by a launcher (launchers query
-             CATEGORY_LAUNCHER explicitly). PackageManager
-             .getLaunchIntentForPackage() resolves CATEGORY_INFO before
-             CATEGORY_LAUNCHER, so this keeps the package's front door
-             resolvable while the drawer icon is hidden — the Xposed module
-             list opens a module's settings through that call, and nothing
-             else in this app starts MainActivity. -->
+        <!-- Always enabled. PackageManager.getLaunchIntentForPackage()
+             resolves CATEGORY_INFO before CATEGORY_LAUNCHER, so this keeps the
+             package's front door resolvable while the drawer icon is hidden —
+             the Xposed module list opens a module's settings through that
+             call, and nothing else in this app starts MainActivity.
+             Trade-off: the launcher's own all-apps list queries
+             CATEGORY_LAUNCHER and so ignores this entry, but Pixel Launcher's
+             SEARCH does surface it, rendered as package information — a search
+             hit opens App Info rather than this screen. The alternative is
+             hiding the package from search entirely at the cost of the
+             manager's settings button. -->
         <activity-alias
             android:name=".ui.InfoAlias"
             android:targetActivity=".ui.MainActivity"

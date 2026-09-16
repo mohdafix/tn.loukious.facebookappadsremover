@@ -2,7 +2,7 @@
 
 An LSPosed/Xposed module for `com.facebook.katana` that removes ads using structural DexKit discovery plus guarded, version-specific fast paths.
 
-Current target: Facebook `576.0.0.42.73`, module `1.8`. Older versions (571 and below) are no longer supported.
+Current target: Facebook `576.0.0.42.73`, module `1.15` (versionCode 16). Discovery is structural rather than name-based, so newer builds generally keep working unchanged — the loader guard described below was verified against `578.0.0.40.75`. Older versions (571 and below) are no longer supported.
 
 ## Scope
 
@@ -11,6 +11,67 @@ Current target: Facebook `576.0.0.42.73`, module `1.8`. Older versions (571 and 
 - Reels / upstream ad-backed story append paths
 - Quicksilver game ad requests
 - Audience Network and Neko playable ad activities used by games
+
+## Features
+
+The module is more than an ad blocker, and the settings screen below is its whole surface. `ui/Toggles.kt` is the source of truth for every switch, its default and its exact effect — what follows is the map, not a second copy of it.
+
+**Ads** (on by default)
+
+- **Block ads** — master switch: home-feed sponsored stories, video ads, banners and the ad-free-session spoof.
+- **Block marketplace ads** — sponsored tiles, boosted listings and video ads in Marketplace.
+- **Block game ads** — in-app game ad requests are rejected; rewarded requests resolve as success, so the reward is still granted.
+- **Feed ad guard (CSR experiment)** — the second feed pipeline Facebook's CSR cohort uses, which the classic feed filter never sees.
+- **Block reels shopping cards** — the "Shop now" product card overlaying promotional reels.
+
+**Feed filters** (off by default) — hide Threads posts, Reels, suggestions, People You May Know, Stories in feed, and AI-generated content (stories carrying the gen-AI transparency flag); a free-text **keyword filter**; and a News Feed **auto-refresh block**.
+
+**Stories** — view stories without marking them seen; keep the Stories tray out of the feed.
+
+**Appearance** — force dark mode.
+
+**Privacy** — allow screenshots and recording; block Facebook's own capture detection.
+
+**Navigation** — activity list: dump every hidden activity Facebook starts (action, URI, extras) to the log.
+
+**Links** — unwrap `facebook.com/l.php?u=…&fbclid=…` redirect links to the real destination before the browser opens them.
+
+**Downloader** — capture media URLs with a floating quick-download bubble; hand media to the browser instead of the in-module downloader; quick-download from a copied link. A captured video also gets a **Repost** action, which posts it to a Facebook Page you administer (the page list comes from `graph.facebook.com`, the token from the live session).
+
+**Video** — resume the last playback position when a video is reopened; background playback with no floating window.
+
+**Account** — session export/import. **Module** — launcher-icon visibility. Both are described below.
+
+## Settings App
+
+The module ships its own Android app: one scrolling screen of switches. Open it from the launcher icon, or from the Xposed/Vector module list (Modules → Facebook App Ads Remover → settings).
+
+**How a toggle reaches a hook.** The switches are not stored in the module app. They live in the framework's remote-preferences group `fbar_settings` (the LSPosed/Vector daemon database), which the module app writes through the libxposed *service* library and the hooks read inside the Facebook process through `XposedInterface.getRemotePreferences`. Plain `SharedPreferences` files in either app's storage are **not** part of that channel — the daemon never reads them. Until the service binds, the switches render with their defaults and stay disabled; the header line says so. Several hooks read their toggle once at install, so treat a change as **apply on next Facebook restart**.
+
+Earlier builds kept toggles in a Facebook-process-local `fbar_prefs` file (written while verifying on device with root). The first time the settings app binds, it copies that file into the remote group if the group is still empty; after that the remote group wins.
+
+### Session export / import
+
+The **Account** section holds buttons rather than switches. *Export session* copies Facebook's two live session files (`authentication`, `logged_in`) plus the captured cookies to `Download/FacebookAppAdsRemover` as `FBAR-Session-*.json`. *Import latest* restores the newest export; *Import from file…* lets you browse to any of those JSON files, for instance one copied from another device. Force-stop Facebook afterwards.
+
+The buttons broadcast into the Facebook process, where `core.SessionBackup` answers — that side holds the session files and the captured cookies.
+
+### Hiding the launcher icon
+
+The **Module** section's `Show launcher icon` switch takes the app out of the launcher. It is the odd one out on the screen: its value lives in `PackageManager`'s component state rather than the framework's remote preferences, so it needs no service and is enabled immediately. Hiding sits behind a confirmation dialog, because the icon is the normal way in.
+
+The drawer entry is an `<activity-alias>` (`ui.LauncherAlias`), not the activity itself, so hiding the icon disables only that component. `ui.MainActivity` stays exported and startable by explicit intent, which is the way back:
+
+```powershell
+adb shell am start -n tn.loukious.facebookappadsremover/.ui.MainActivity
+```
+
+The manifest also carries an always-enabled second alias, `ui.InfoAlias`, with `ACTION_MAIN` + `CATEGORY_INFO`. `PackageManager.getLaunchIntentForPackage()` resolves `CATEGORY_INFO` before `CATEGORY_LAUNCHER`, and the Xposed module list opens a module's settings through exactly that call — without the second alias, hiding the icon would take the manager's settings button with it.
+
+Two consequences worth knowing:
+
+- Pixel Launcher's **search** does surface the `CATEGORY_INFO` entry (the app drawer does not — it queries `CATEGORY_LAUNCHER` explicitly). A search hit renders as package information, so tapping it opens *App Info* rather than this screen. App Info's own *Open* button does land on the settings screen.
+- Hiding the icon cannot affect the module itself. The framework daemon loads the module from the APK path in its own database, so the hooks inside Facebook are untouched.
 
 ## Main Findings
 
@@ -21,6 +82,7 @@ Current target: Facebook `576.0.0.42.73`, module `1.8`. Older versions (571 and 
 - The earliest safe client boundary found so far is the dedicated story-ad store layer identified by `AdsPaginatingNetworkAdBucketFetcher`, `FbStoryAdInDiscStoreImpl`, `IN_DISC_METADATA_KEY`, and `AD_BUCKETS_KEY`. The module blocks fetch, merge, deferred-update, and insertion methods there before ad units enter feed pools. The telemetry labels `ads_deletion`/`ads_insertion` are deliberately NOT used as class selectors anymore: unrelated story viewer classes log those labels, and hooking them blanks the story viewer (576's `X.BAl` was the story viewer's own `onDataChanged` handler).
 - Game ads are not a single pipeline either. Quicksilver request hooks, postMessage hooks, and UI activity fallbacks all matter.
 - Blocking `AudienceNetworkActivity` at `startActivity(...)` was too early and caused game hangs. Letting it launch and closing it immediately from activity lifecycle hooks worked better.
+- `com.facebook.soloader.SoLoader` is not an ad class, but it *names* ad libraries. It holds the merged-native-library dispatch table, which lists every native library in the app — including ad-related ones such as `libmailboxinthreadadcontextbannerjni.so` — so a DexKit string-anchor scan for an ad-library name matches it. Sweeping it is fatal: its `loadLibrary` / `loadLibraryUnsafe` overloads return boolean, so a false-returning hook replaces them, no merged library ever gets its `JNI_OnLoad`, every `initHybrid` throws `UnsatisfiedLinkError`, and Facebook cannot start at all. Loader infrastructure must never be an anchor target — see the guard under Cache Invalidation.
 
 ## Hook Strategy
 
@@ -62,11 +124,24 @@ The preferred interception point is therefore after GraphQL data has been decode
 - Close `AudienceNetworkActivity`, `AudienceNetworkRemoteActivity`, and `NekoPlayableAdActivity` from lifecycle hooks as UI-level fallbacks.
 - Only hard-block the playable activity launch path directly; Audience Network activity launches are allowed so their internal close/error flow can run before the activity is closed.
 
+### Cache Invalidation
+
+Two discovery results are persisted **inside the Facebook process**, and both are keyed against the build that produced them:
+
+| Cache | File | Key | Rebuilt when |
+|---|---|---|---|
+| Method / discovery | `fbar_discovery_cache` in the host `cacheDir` | Facebook `versionCode` | the host version changes |
+| Banner classes | `fbar_prefs_banner` in the host `shared_prefs` | Facebook `versionCode` **and** module `VERSION_CODE` | either stamp moves |
+
+- **Why the banner cache needs the module stamp as well.** Its entries are obfuscated member names, so they mean something only for the exact host build — that is the host stamp. But the *scan's own semantics* change with the module, and that is precisely how a poisoned class set (the SoLoader entry) reached a shipped cache and stayed there: the list was written once and afterwards only ever read, so nothing could revise it. Stamping both makes the module version part of the cache's validity.
+- **A stale cache is rebuilt only when a DexKit bridge is available.** On the discovery-cache-hit launch path there is none (`ModuleMain` passes a null bridge there), so a stale set is swept as it stands and the stamps are deliberately left stale: a name that no longer exists simply fails `Class.forName` and is skipped, and the loader guard makes a poisoned entry harmless. Wiping the set there would strand banner coverage until Facebook's data was cleared — deferring moves the rebuild to the next launch that does have a bridge.
+- **The class set is filtered twice**: once at scan time, so a poisoned name is never written to the cache in the first place, and once before the sweep, so a cache written by an older module is harmless anyway. The sweep also never replaces `loadLibrary` / `loadLibraryUnsafe`, whichever class it lands on.
+
 ## Notes About Logs
 
-- Runtime logs are debug-only.
-- `Patches.kt` and `Module.java` now gate logging behind `BuildConfig.DEBUG`.
-- Release builds should stay quiet unless you re-enable logging yourself.
+- Runtime logs go through `core/L.kt`, which writes to logcat and to the framework's module log.
+- Read them with `adb logcat -s FacebookAppAdsRemover FBAR.Discovery`; every hook has its own `FBAR.*` tag.
+- Logging is currently **not** gated behind `BuildConfig.DEBUG` — release builds are as loud as debug ones. Gating it is an open item.
 
 ## About `feedCsr=0`
 
@@ -100,8 +175,10 @@ Build the debug APK with:
 ./gradlew :app:assembleDebug
 ```
 
+`versionCode` / `versionName` live in `app/build.gradle.kts`; the output lands in `app/build/outputs/apk/debug/FacebookAppAdsRemover-v<versionName>-debug.apk`.
+
 ## Current Direction
 
 - Prefer stable strings, type signatures, and runtime structure over obfuscated identifiers.
-- Keep debug instrumentation available in debug builds only.
+- Gate the runtime logging behind `BuildConfig.DEBUG` (open item — nothing gates it today).
 - Treat feed, story, and game ads as separate pipelines with separate fallbacks.

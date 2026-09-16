@@ -1,21 +1,10 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Keep module entry class (extends XposedModule, needs public no-arg constructor).
+-keep class * extends io.github.libxposed.api.XposedModule { public <init>(); }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Rewrite java_init.list when entry classes are obfuscated.
+-adaptresourcefilecontents META-INF/xposed/java_init.list
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# dexplore relies heavily on reflection.
+-keep class io.github.neonorbit.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# OkHttp / Okio keep their own consumer rules; nothing extra needed.

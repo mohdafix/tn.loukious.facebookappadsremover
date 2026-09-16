@@ -7,26 +7,39 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="@string/module_name"
+        android:description="@string/module_description"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        tools:targetApi="31">
-        <meta-data
-            android:name="xposedmodule"
-            android:value="true" />
+        android:theme="@style/Theme.FBAR">
+
         <meta-data
             android:name="xposeddescription"
-            android:value="An Xposed module that removes ads from the Facebook app." />
-        <meta-data
-            android:name="xposedminversion"
-            android:value="93" />
-        <meta-data
-            android:name="xposedsharedprefs"
-            android:value="false" />
+            android:value="@string/module_description" />
         <meta-data
             android:name="xposedscope"
             android:value="com.facebook.katana" />
 
-    </application>
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
 
+        <!-- Session export/import results from the Facebook process
+             (core.SessionBackup). Manifest-registered so it also works when
+             the activity is gone; the FB side targets our package
+             explicitly, which is delivered despite the implicit-broadcast
+             ban. -->
+        <receiver
+            android:name=".ui.SessionResultReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="tn.loukious.facebookappadsremover.action.SESSION_RESULT" />
+            </intent-filter>
+        </receiver>
+    </application>
 </manifest>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Recommended LSPosed Scope -->
+    <string-array name="scope">
+        <item>com.facebook.katana</item>
+        <item>com.facebook.lite</item>
+        <item>tn.loukious.facebookappadsremover</item>
+        <item>android</item>
+    </string-array>
+
+    <!-- Supported Facebook Katana Versions -->
+    <string-array name="supported_versions_facebook">
+        <item>575.0.0.34.82</item>
+        <item>574.0.0.41.76</item>
+        <item>573.0.0.32.71</item>
+        <item>572.0.0.35.68</item>
+        <item>571.0.0.44.73 (Stable Target - Build 473224484)</item>
+        <item>570.0.0.33.68</item>
+        <item>569.0.0.21.60</item>
+        <item>568.0.0.30.55</item>
+        <item>567.0.0.28.51</item>
+        <item>566.0.0.31.47</item>
+        <item>565.0.0.40.61</item>
+        <item>564.0.0.38.58</item>
+        <item>563.0.0.36.54</item>
+        <item>562.0.0.29.50</item>
+        <item>561.0.0.25.46</item>
+        <item>560.0.0.22.42</item>
+        <item>555.0.0.20.38</item>
+        <item>550.0.0.18.34</item>
+        <item>500.0.0.15.30</item>
+    </string-array>
+
+    <!-- Supported Ad Removal Scopes -->
+    <string-array name="supported_ad_scopes">
+        <item>News Feed Sponsored Units (SPONSORED category &amp; GraphQL edges)</item>
+        <item>Stories &amp; Reels Ads (Story carousels &amp; in-stream banners)</item>
+        <item>Quicksilver Game Ads (Async requests &amp; postMessage bridge)</item>
+        <item>Audience Network &amp; Neko Playable Ads (Remote activities)</item>
+    </string-array>
+</resources>

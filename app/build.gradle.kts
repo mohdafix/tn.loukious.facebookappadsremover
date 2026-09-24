@@ -30,6 +30,7 @@ android {
     // (VERSION_NAME + VERSION_CODE), so the generated BuildConfig is needed.
     buildFeatures {
         buildConfig = true
+        viewBinding = true
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -54,6 +55,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.10.0")
+    implementation("androidx.preference:preference-ktx:1.2.1")
 
     // Modern Xposed API: compileOnly — provided by the framework in-process.
     compileOnly("io.github.libxposed:api:102.0.0")

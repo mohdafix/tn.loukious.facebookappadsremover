@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_ads">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="ads.enabled"
+            app:summary="@string/pref_ads_enabled_summary"
+            app:title="@string/pref_ads_enabled" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="ads.marketplace"
+            app:summary="@string/pref_ads_marketplace_summary"
+            app:title="@string/pref_ads_marketplace" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="ads.gameAds"
+            app:summary="@string/pref_ads_gameads_summary"
+            app:title="@string/pref_ads_gameads" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="ads.feedGuard"
+            app:summary="@string/pref_ads_feedguard_summary"
+            app:title="@string/pref_ads_feedguard" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="ads.reelsShopping"
+            app:summary="@string/pref_ads_reelsshopping_summary"
+            app:title="@string/pref_ads_reelsshopping" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_feed_filters">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.threads"
+            app:summary="@string/pref_feed_threads_summary"
+            app:title="@string/pref_feed_threads" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.reels"
+            app:summary="@string/pref_feed_reels_summary"
+            app:title="@string/pref_feed_reels" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.suggestions"
+            app:summary="@string/pref_feed_suggestions_summary"
+            app:title="@string/pref_feed_suggestions" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.pymk"
+            app:summary="@string/pref_feed_pymk_summary"
+            app:title="@string/pref_feed_pymk" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.stories"
+            app:summary="@string/pref_feed_stories_summary"
+            app:title="@string/pref_feed_stories" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.aiContent"
+            app:summary="@string/pref_feed_ai_summary"
+            app:title="@string/pref_feed_ai" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.keywords.enabled"
+            app:summary="@string/pref_feed_keywords_enabled_summary"
+            app:title="@string/pref_feed_keywords_enabled" />
+
+        <EditTextPreference
+            app:iconSpaceReserved="false"
+            app:key="feed.keywords"
+            app:summary="@string/pref_feed_keywords_summary"
+            app:title="@string/pref_feed_keywords"
+            app:useSimpleSummaryProvider="true"
+            app:dialogTitle="@string/pref_feed_keywords"
+            app:dialogMessage="Enter keywords separated by commas or newlines. Case-insensitive." />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="feed.autoRefreshBlock"
+            app:summary="@string/pref_feed_autorefresh_summary"
+            app:title="@string/pref_feed_autorefresh" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_stories">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="stories.hideSeen"
+            app:summary="@string/pref_stories_hideseen_summary"
+            app:title="@string/pref_stories_hideseen" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="stories.hideTray"
+            app:summary="@string/pref_stories_hidetray_summary"
+            app:title="@string/pref_stories_hidetray" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

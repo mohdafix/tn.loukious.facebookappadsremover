@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/pref_category_about">
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="view_supported_versions"
+            app:summary="@string/pref_supported_versions_summary"
+            app:title="@string/pref_supported_versions_title" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

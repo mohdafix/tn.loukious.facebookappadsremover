@@ -143,7 +143,7 @@ val TOGGLE_SECTIONS: List<ToggleSection> = listOf(
         ),
     )),
     ToggleSection("Downloader", listOf(
-        ToggleSpec(Settings.DOWNLOAD_USE_BROWSER, "Download via browser", "Hand media URLs to the browser instead of the in-module downloader", true),
+        ToggleSpec(Settings.DOWNLOAD_USE_BROWSER, "Download via browser", "Hand media URLs to the browser instead of the in-module downloader", false),
         ToggleSpec(
             Settings.DOWNLOAD_SHOW_ICON,
             "Show download icon",

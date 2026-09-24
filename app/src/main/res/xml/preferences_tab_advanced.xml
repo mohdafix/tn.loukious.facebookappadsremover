@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_appearance">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="appearance.dark"
+            app:summary="@string/pref_appearance_dark_summary"
+            app:title="@string/pref_appearance_dark" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_privacy">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="privacy.allowCapture"
+            app:summary="@string/pref_privacy_capture_summary"
+            app:title="@string/pref_privacy_capture" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="privacy.blockCaptureDetection"
+            app:summary="@string/pref_privacy_detection_summary"
+            app:title="@string/pref_privacy_detection" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_navigation">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="navigation.activityList"
+            app:summary="@string/pref_navigation_activitylist_summary"
+            app:title="@string/pref_navigation_activitylist" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_links">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="links.cleanUrl"
+            app:summary="@string/pref_links_cleanurl_summary"
+            app:title="@string/pref_links_cleanurl" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_account">
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="account_export_session"
+            app:summary="@string/pref_account_export_summary"
+            app:title="@string/pref_account_export" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="account_import_latest"
+            app:summary="@string/pref_account_import_latest_summary"
+            app:title="@string/pref_account_import_latest" />
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="account_import_file"
+            app:summary="@string/pref_account_import_file_summary"
+            app:title="@string/pref_account_import_file" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_module">
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="launcher_icon"
+            app:summary="@string/pref_launcher_icon_visible_summary"
+            app:title="@string/pref_launcher_icon" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_diagnostics">
+
+        <Preference
+            app:iconSpaceReserved="false"
+            app:key="view_dynamic_hooks"
+            app:summary="@string/pref_view_dynamic_hooks_summary"
+            app:title="@string/pref_view_dynamic_hooks" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

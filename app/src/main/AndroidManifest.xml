@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Package visibility (Android 11+): lets the Home tab resolve Facebook's
+         PackageInfo (status card) and launcher intent (restart fallback). -->
+    <queries>
+        <package android:name="com.facebook.katana" />
+        <package android:name="com.facebook.lite" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -11,7 +18,7 @@
         android:description="@string/module_description"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.FBAR">
+        android:theme="@style/Theme.App.DayNight">
 
         <meta-data
             android:name="xposeddescription"
@@ -23,6 +30,10 @@
         <activity
             android:name=".ui.MainActivity"
             android:exported="true" />
+
+        <activity
+            android:name=".ui.SupportedVersionsActivity"
+            android:exported="false" />
 
         <!-- Drawer entry. Deliberately an alias rather than an intent-filter on
              the activity: ui.LauncherIcon hides the icon by disabling this

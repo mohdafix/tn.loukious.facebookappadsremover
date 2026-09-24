@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="fb_blue">#FF1877F2</color>
-    <color name="fb_blue_dark">#FF0C4A9E</color>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="colorPrimary">#1877F2</color>
+    <color name="colorPrimaryVariant">#0C63D4</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="colorSecondary">#8B5CF6</color>
+    <color name="colorSecondaryVariant">#7C3AED</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+    
+    <!-- AMOLED: pure-black backgrounds, subtly elevated surfaces. -->
+    <color name="backgroundColor">#000000</color>
+    <color name="surfaceColor">#0A0A0A</color>
+    <color name="cardBackgroundColor">#0A0A0A</color>
+    <color name="textPrimary">#E4E6EB</color>
+    <color name="textSecondary">#8A8F98</color>
+    
+    <color name="status_enabled_start">#10B981</color>
+    <color name="status_enabled_end">#059669</color>
+    <color name="status_disabled_start">#EF4444</color>
+    <color name="status_disabled_end">#DC2626</color>
+    <color name="status_fb_active_start">#3B82F6</color>
+    <color name="status_fb_active_end">#2563EB</color>
+
+    <color name="fb_blue">#1877F2</color>
+    <color name="fb_blue_dark">#145CB8</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
 </resources>

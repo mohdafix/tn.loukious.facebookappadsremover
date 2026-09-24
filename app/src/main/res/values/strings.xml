@@ -1,6 +1,68 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Facebook App Ads Remover</string>
+    <string name="module_enabled">Module Enabled &amp; Active</string>
+    <string name="module_disabled">Module Disabled (Not active in LSPosed)</string>
+    <string name="module_status_summary">LSPosed status checked. Reboot or restart scope if recently changed.</string>
+    <string name="module_status_summary_enabled">LSPosed hooks are active. Make sure Facebook is restarted after preference changes.</string>
+    <string name="module_status_summary_disabled">Important: In LSPosed Manager, check BOTH Facebook App Ads Remover and Facebook in Scope, then reboot or force stop this app!</string>
+    <string name="fb_status_checking">Checking Facebook status...</string>
+    <string name="fb_status_active">Facebook Active &amp; Hooked (v%1$s)</string>
+    <string name="fb_status_inactive">Facebook Not Responding or Hooks Disabled</string>
+    <string name="fb_status_not_installed">Facebook App (com.facebook.katana) not installed</string>
+    <string name="restart_facebook">Restart Facebook</string>
+    <string name="restart_facebook_summary">Force stop and restart Facebook to apply settings instantly.</string>
+    <string name="restart_sent">Restart command sent to Facebook.</string>
+    
+    <string name="pref_category_general">General Settings</string>
+    <string name="pref_enable_module">Enable Ad Remover</string>
+    <string name="pref_enable_module_summary">Master switch to enable or disable all Facebook ad removal hooks</string>
+    
+    <string name="pref_category_ad_types">Ad Removal Scope</string>
+    <string name="pref_remove_feed_ads">News Feed Sponsored Units</string>
+    <string name="pref_remove_feed_ads_summary">Remove sponsored posts and ads from the main News Feed</string>
+    <string name="pref_remove_story_ads">Stories &amp; Reels Ads</string>
+    <string name="pref_remove_story_ads_summary">Remove ads inserted into story carousels and video Reels</string>
+    <string name="pref_remove_game_ads">Game Ads</string>
+    <string name="pref_remove_game_ads_summary">Remove Quicksilver game ads and Audience Network playable activities</string>
+    
+    <string name="pref_category_feed_customizer">Feed Customizer &amp; Algorithm Clutter</string>
+    <string name="pref_remove_suggested_posts">Remove Suggested Posts &amp; PYMK</string>
+    <string name="pref_remove_suggested_posts_summary">Hide \'Suggested for You\', \'Group Recommendations\', and \'People You May Know\' from News Feed</string>
+    <string name="pref_remove_reels_tray">Hide Reels &amp; Short Video Trays</string>
+    <string name="pref_remove_reels_tray_summary">Remove TikTok-style short video carousels (Reels/Shorts trays) from News Feed</string>
+    <string name="pref_remove_instream_video_ads">Remove In-Stream Video Ads</string>
+    <string name="pref_remove_instream_video_ads_summary">Block mid-roll and pre-roll commercial video ads inside Facebook Watch and Reels playback</string>
+    
+    <string name="pref_category_ui_cleaner">🛡️ Interactive UI Cleaner &amp; Hider</string>
+    <string name="pref_ui_selector_mode">UI Element Selector Mode</string>
+    <string name="pref_ui_selector_mode_summary">Tap elements directly inside Facebook to select and permanently hide them</string>
+    <string name="pref_manage_hidden_elements">Manage Hidden UI Elements</string>
+    <string name="pref_manage_hidden_elements_summary">View all saved hidden elements and selectively restore them</string>
+
+    <string name="pref_category_advanced">Advanced</string>
+    <string name="pref_debug_logging">Enable Debug Logging</string>
+    <string name="pref_debug_logging_summary">Log detailed DexKit resolution and hook execution notes to logcat (TAG: FacebookAppAdsRemover)</string>
+
+    <string name="pref_category_about">About &amp; Supported Targets</string>
+    <string name="pref_supported_versions_title">Supported Facebook Targets &amp; Ad Types</string>
+    <string name="pref_supported_versions_summary">Check supported Facebook versions and active ad removal scopes</string>
+    <string name="supported_versions_title">Supported Versions &amp; Ad Types</string>
+    <string name="supported_versions_subtitle">Officially supported targets and ad removal scopes</string>
+    <string name="section_facebook_katana">FACEBOOK KATANA TARGETS</string>
+    <string name="section_ad_scopes">SUPPORTED AD REMOVAL SCOPES</string>
+    <string name="view_supported_versions_btn">View All Supported Versions &amp; Ad Types &#8594;</string>
+    <string name="pref_category_media">Media &amp; HD Quality Enhancements</string>
+    <string name="pref_enable_media_downloader">Enable Reel &amp; Video Downloader</string>
+    <string name="pref_enable_media_downloader_summary">Allow downloading Reels, Watch videos, and Stories directly to your phone\'s Gallery via long-press gesture or Share link interception</string>
+    <string name="pref_force_hd_photo_upload">Force HD Photo Uploads</string>
+    <string name="pref_force_hd_photo_upload_summary">Bypass client-side bitmap compression downgrades and upload photos in maximum 4K/HD resolution</string>
+    <string name="pref_force_hd_video_upload">Force HD Video Uploads</string>
+    <string name="pref_force_hd_video_upload_summary">Override MobileConfig bitrate throttles and transcode video uploads in crystal clear 1080p/4K high bitrate</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_adblock">Ad Blocker</string>
+    <string name="tab_media">Media</string>
+    <string name="tab_advanced">Advanced</string>
+
     <string name="module_name">Facebook App Ads Remover</string>
     <string name="module_description">Modern Xposed module for Facebook: ad-free feed, media download, account tools</string>
     <string name="module_status">Module loaded. Enable it in LSPosed for com.facebook.katana, then restart Facebook.</string>
@@ -8,4 +70,89 @@
     <string name="service_waiting">Connecting to the Xposed service… switches unlock when connected (the module must be enabled in LSPosed).</string>
     <string name="service_ready">Connected — changes are stored in the framework and read by the hooks in Facebook.</string>
     <string name="debug_hint">Hook points are resolved at runtime and logged inside the Facebook process. View the report with:\n\nadb logcat -s FacebookAppAdsRemover FBAR.Discovery\n\nEach target logs FOUND / NOT_UNIQUE / NOT_FOUND with the resolved method descriptor.</string>
+
+    <string name="sec_ads">Ads</string>
+    <string name="sec_feed_filters">Feed filters</string>
+    <string name="sec_stories">Stories</string>
+    <string name="sec_downloader">Downloader</string>
+    <string name="sec_video">Video</string>
+    <string name="sec_appearance">Appearance</string>
+    <string name="sec_privacy">Privacy</string>
+    <string name="sec_navigation">Navigation</string>
+    <string name="sec_links">Links</string>
+    <string name="sec_account">Account</string>
+    <string name="sec_module">Module</string>
+    <string name="sec_diagnostics">Diagnostics</string>
+
+    <string name="pref_ads_enabled">Block ads</string>
+    <string name="pref_ads_enabled_summary">Home-feed sponsored stories, video ads, banners and the ad-free-session spoof - one switch</string>
+    <string name="pref_ads_marketplace">Block marketplace ads</string>
+    <string name="pref_ads_marketplace_summary">Marketplace sponsored tiles, boosted listings and video ads - drops the ad queries and flips the server\'s ad-skip flags</string>
+    <string name="pref_ads_gameads">Block game ads</string>
+    <string name="pref_ads_gameads_summary">In-app game ad requests (interstitial/rewarded/banner) are rejected; rewarded ads resolve as success so rewards are still granted</string>
+    <string name="pref_ads_feedguard">Feed ad guard (CSR experiment)</string>
+    <string name="pref_ads_feedguard_summary">Second feed pipeline used by FB\'s CSR experiment cohort - filters sponsored units the classic feed filter never sees</string>
+    <string name="pref_ads_reelsshopping">Block reels shopping cards</string>
+    <string name="pref_ads_reelsshopping_summary">The small \"Shop now\" product-card banner overlaying promotional reels - blocked at render time</string>
+
+    <string name="pref_feed_threads">Hide Threads posts</string>
+    <string name="pref_feed_threads_summary">PROMOTION stories</string>
+    <string name="pref_feed_reels">Hide Reels</string>
+    <string name="pref_feed_reels_summary">FB_SHORTS stories</string>
+    <string name="pref_feed_suggestions">Hide suggestions</string>
+    <string name="pref_feed_suggestions_summary">ENGAGEMENT stories - can starve the feed pager when whole batches are suggestions</string>
+    <string name="pref_feed_pymk">Hide People You May Know</string>
+    <string name="pref_feed_pymk_summary">ENGAGEMENT_QP stories</string>
+    <string name="pref_feed_stories">Hide Stories in feed</string>
+    <string name="pref_feed_stories_summary">Stories tray + story viewer render</string>
+    <string name="pref_feed_ai">Hide AI-generated content</string>
+    <string name="pref_feed_ai_summary">Drops stories tagged with the gen-AI transparency flag (\"AI info\") - self-disclosed AI posts</string>
+    <string name="pref_feed_keywords_enabled">Keyword filter</string>
+    <string name="pref_feed_keywords_enabled_summary">Hides feed stories containing any keyword from the list below (case-insensitive, comma-separated)</string>
+    <string name="pref_feed_keywords">Keyword list</string>
+    <string name="pref_feed_keywords_summary">Comma or newline-separated keywords the feed filter matches. Needs the Keyword filter switch on.</string>
+    <string name="pref_feed_autorefresh">Block auto-refresh</string>
+    <string name="pref_feed_autorefresh_summary">Kills revisit/warm-start/foreground/force refresh on the News Feed (Beta)</string>
+
+    <string name="pref_stories_hideseen">View stories without marking seen</string>
+    <string name="pref_stories_hideseen_summary">Blocks the seen-reporting controller so the server never learns you watched</string>
+    <string name="pref_stories_hidetray">Hide Stories tray</string>
+    <string name="pref_stories_hidetray_summary">Keeps the Stories card out of the feed\'s adapter list</string>
+
+    <string name="pref_download_browser">Download via browser</string>
+    <string name="pref_download_browser_summary">Hand media URLs to the browser instead of the in-module downloader</string>
+    <string name="pref_download_icon">Show download icon</string>
+    <string name="pref_download_icon_summary">The floating download bubble that appears once a video is captured - hide it if you only download via copied links</string>
+    <string name="pref_download_clipboard">Quick download from copied link</string>
+    <string name="pref_download_clipboard_summary">Copying an http(s) link fires the qualities fetch + quick-download dialog</string>
+
+    <string name="pref_video_resume">Resume video position</string>
+    <string name="pref_video_resume_summary">Seek back to the saved position when a video is re-opened</string>
+    <string name="pref_video_background">Background playback</string>
+    <string name="pref_video_background_summary">Keep the tracked video playing while the app is backgrounded (no floating window)</string>
+
+    <string name="pref_appearance_dark">Force dark mode</string>
+    <string name="pref_appearance_dark_summary">ThemePreferences + FbFragmentActivity isDarkMode -> true</string>
+    <string name="pref_privacy_capture">Allow screenshots &amp; recording</string>
+    <string name="pref_privacy_capture_summary">Clears FLAG_SECURE on every activity</string>
+    <string name="pref_privacy_detection">Block capture detection</string>
+    <string name="pref_privacy_detection_summary">Blocks FB\'s screenshot/recording watchers</string>
+    <string name="pref_navigation_activitylist">Activity list (Intent dump)</string>
+    <string name="pref_navigation_activitylist_summary">Logs every hidden activity FB starts - action, URI, extras</string>
+    <string name="pref_links_cleanurl">Unwrap l.php redirect links</string>
+    <string name="pref_links_cleanurl_summary">Rewrites facebook.com/l.php?u=...&amp;fbclid=... URLs to the real destination before the browser opens them</string>
+
+    <string name="pref_account_export">Export session</string>
+    <string name="pref_account_export_summary">Copies the login (authentication/logged_in) files + cookies to Download/FacebookAppAdsRemover</string>
+    <string name="pref_account_import_latest">Import latest</string>
+    <string name="pref_account_import_latest_summary">Restores the newest FBAR-Session-*.json export</string>
+    <string name="pref_account_import_file">Import from file...</string>
+    <string name="pref_account_import_file_summary">Browse to any FBAR-Session-*.json - e.g. one copied from another device. Force-stop Facebook afterwards</string>
+
+    <string name="pref_launcher_icon">Show launcher icon</string>
+    <string name="pref_launcher_icon_visible_summary">The launcher icon is visible. Tap to hide it - everything keeps working</string>
+    <string name="pref_launcher_icon_hidden_summary">The launcher icon is hidden. Tap to bring it back</string>
+
+    <string name="pref_view_dynamic_hooks">View Dynamic Hooks Diagnostics</string>
+    <string name="pref_view_dynamic_hooks_summary">Inspect the dynamically resolved hooks (DexKit) captured for the current Facebook version</string>
 </resources>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_downloader">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="download.useBrowser"
+            app:summary="@string/pref_download_browser_summary"
+            app:title="@string/pref_download_browser" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="download.showIcon"
+            app:summary="@string/pref_download_icon_summary"
+            app:title="@string/pref_download_icon" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="download.clipboardTrigger"
+            app:summary="@string/pref_download_clipboard_summary"
+            app:title="@string/pref_download_clipboard" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        app:title="@string/sec_video">
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="media.video.resume"
+            app:summary="@string/pref_video_resume_summary"
+            app:title="@string/pref_video_resume" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="media.video.background"
+            app:summary="@string/pref_video_background_summary"
+            app:title="@string/pref_video_background" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

@@ -46,7 +46,7 @@ object Settings {
     //   hideSeenStory                        → stories.hideSeen                FALSE
     //   privacy.disable_flag_secure          → privacy.allowCapture            FALSE
     //   privacy.capture_detection            → privacy.blockCaptureDetection   FALSE
-    //   (download "use browser" setting)     → download.useBrowser             TRUE
+    //   (download "use browser" setting)     → download.useBrowser             FALSE
     //   swVIDEO_RESUME                       → media.video.resume              TRUE
     //   swBACKGROUND_PLAYBACK                → media.video.background          FALSE
 
@@ -92,6 +92,9 @@ object Settings {
     const val PRIVACY_ALLOW_CAPTURE = "privacy.allowCapture"
     const val PRIVACY_BLOCK_DETECTION = "privacy.blockCaptureDetection"
     const val DOWNLOAD_USE_BROWSER = "download.useBrowser"
+    //   (download "use browser" setting) → download.useBrowser  FALSE — the
+    //   in-module downloader is the default (mod's DownloadWithBrowser toggle
+    //   defaulted OFF; browser hand-off is opt-in).
 
     /** Show the floating quick-download bubble when media is captured. The
      *  downloader itself stays armed when this is off — only the overlay

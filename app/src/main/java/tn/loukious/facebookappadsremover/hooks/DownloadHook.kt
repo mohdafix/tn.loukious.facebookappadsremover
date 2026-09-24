@@ -2164,7 +2164,7 @@ object DownloadHook {
      * browsers) or a direct streamed download to Movies/FB_Download.
      */
     fun startDownload(activity: Activity, url: String, ext: String) {
-        val useBrowser = Settings.getBoolean(Settings.DOWNLOAD_USE_BROWSER, true)
+        val useBrowser = Settings.getBoolean(Settings.DOWNLOAD_USE_BROWSER, false)
         if (useBrowser) {
             runCatching {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))

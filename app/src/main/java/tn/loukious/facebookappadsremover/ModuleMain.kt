@@ -9,6 +9,7 @@ import tn.loukious.facebookappadsremover.core.MethodCache
 import tn.loukious.facebookappadsremover.core.ProbeTargets
 import tn.loukious.facebookappadsremover.core.Settings
 import tn.loukious.facebookappadsremover.core.SessionBackup
+import tn.loukious.facebookappadsremover.core.UiBridge
 import tn.loukious.facebookappadsremover.hooks.AccountHook
 import tn.loukious.facebookappadsremover.hooks.ActivityListHook
 import tn.loukious.facebookappadsremover.hooks.AdFilterHook
@@ -76,6 +77,17 @@ class ModuleMain : XposedModule() {
 
     override fun onPackageReady(param: PackageReadyParam) {
         if (!param.isFirstPackage) return
+        if (param.packageName == "tn.loukious.facebookappadsremover") {
+            try {
+                val mainAct = Class.forName("tn.loukious.facebookappadsremover.ui.MainActivity", false, param.classLoader)
+                val method = mainAct.getDeclaredMethod("isXposedEnabled")
+                hook(method).intercept(object : Hooker {
+                    override fun intercept(chain: XposedInterface.Chain): Any? =
+                        java.lang.Boolean.TRUE
+                })
+            } catch (e: Exception) {}
+            return
+        }
         if (param.packageName != FACEBOOK_PACKAGE) return
 
         L.i(TAG, "Facebook ready — hooking app onCreate")
@@ -189,6 +201,11 @@ class ModuleMain : XposedModule() {
         // files through MediaStore Downloads.
         runCatching { SessionBackup.install(context) }
             .onFailure { L.e(TAG, "Session backup receiver failed", it) }
+
+        // Home-tab bridge: answers the "is FB alive + hooked?" ping and
+        // force-stops FB when the user hits "Restart Facebook".
+        runCatching { UiBridge.install(context) }
+            .onFailure { L.e(TAG, "Ui bridge receiver failed", it) }
 
         // The secondary dexes are injected into the app classloader's
         // dexElements some time after onCreate (dextricks async init). Retry

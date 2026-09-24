@@ -49,21 +49,38 @@ object MethodCache {
 
     fun store(context: Context, methods: Map<String, List<Method>>, classes: Map<String, String>) {
         val sb = StringBuilder()
+        val jsonCache = org.json.JSONObject()
         for ((key, list) in methods) {
             if (list.isEmpty()) continue
             sb.append(key).append('=')
+            val jsonArray = org.json.JSONArray()
             for (m in list) {
-                sb.append(m.declaringClass.name).append('#').append(m.name)
-                sb.append(':').append(m.parameterTypes.joinToString(",") { it.name })
-                sb.append(';')
+                val sig = m.declaringClass.name + "#" + m.name + ":" + m.parameterTypes.joinToString(",") { it.name }
+                sb.append(sig).append(';')
+                jsonArray.put(sig)
             }
             sb.append('\n')
+            jsonCache.put(key, jsonArray)
         }
         val editor = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
             .putInt(KEY_VERSION, versionCode(context))
             .putString(KEY_TARGETS, sb.toString())
-        for ((k, v) in classes) editor.putString(KEY_CLASS_PREFIX + k, v)
+        for ((k, v) in classes) {
+            editor.putString(KEY_CLASS_PREFIX + k, v)
+            jsonCache.put("class:$k", v)
+        }
         editor.apply()
+
+        // Broadcast to module UI for the "Scan DexKit" dialog
+        runCatching {
+            val fbVersion = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "Unknown"
+            val intent = android.content.Intent("tn.loukious.facebookappadsremover.CACHE_UPDATED").apply {
+                setPackage("tn.loukious.facebookappadsremover")
+                putExtra("FB_VERSION", fbVersion)
+                putExtra("CACHE_JSON", jsonCache.toString())
+            }
+            context.sendBroadcast(intent)
+        }.onFailure { L.e("FBAR.Cache", "failed to broadcast cache update", it) }
     }
 
     /** "Class#name:param,param" -> Method via the app classloader. */

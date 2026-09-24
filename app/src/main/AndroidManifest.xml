@@ -85,5 +85,13 @@
                 <action android:name="tn.loukious.facebookappadsremover.action.SESSION_RESULT" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name=".ui.DexKitCacheReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="tn.loukious.facebookappadsremover.CACHE_UPDATED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

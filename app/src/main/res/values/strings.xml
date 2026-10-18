@@ -92,8 +92,7 @@
     <string name="pref_ads_gameads_summary">In-app game ad requests (interstitial/rewarded/banner) are rejected; rewarded ads resolve as success so rewards are still granted</string>
     <string name="pref_ads_feedguard">Feed ad guard (CSR experiment)</string>
     <string name="pref_ads_feedguard_summary">Second feed pipeline used by FB\'s CSR experiment cohort - filters sponsored units the classic feed filter never sees</string>
-    <string name="pref_ads_reelsshopping">Block reels shopping cards</string>
-    <string name="pref_ads_reelsshopping_summary">The small \"Shop now\" product-card banner overlaying promotional reels - blocked at render time</string>
+
 
     <string name="pref_feed_threads">Hide Threads posts</string>
     <string name="pref_feed_threads_summary">PROMOTION stories</string>
@@ -121,8 +120,8 @@
 
     <string name="pref_download_browser">Download via browser</string>
     <string name="pref_download_browser_summary">Hand media URLs to the browser instead of the in-module downloader</string>
-    <string name="pref_download_icon">Show download icon</string>
-    <string name="pref_download_icon_summary">The floating download bubble that appears once a video is captured - hide it if you only download via copied links</string>
+    <string name="pref_download_icon">Show contextual download actions</string>
+    <string name="pref_download_icon_summary">Shows Download on the active reel and enables Save for the story currently open; each action is bound to that media item</string>
     <string name="pref_download_clipboard">Quick download from copied link</string>
     <string name="pref_download_clipboard_summary">Copying an http(s) link fires the qualities fetch + quick-download dialog</string>
 
@@ -133,14 +132,24 @@
 
     <string name="pref_appearance_dark">Force dark mode</string>
     <string name="pref_appearance_dark_summary">ThemePreferences + FbFragmentActivity isDarkMode -> true</string>
+    <string name="pref_appearance_amoled">AMOLED black mode</string>
+    <string name="pref_appearance_amoled_summary">Morphe-style true-black backgrounds for Facebook dark mode; enable Facebook dark mode or Force dark mode too</string>
     <string name="pref_privacy_capture">Allow screenshots &amp; recording</string>
     <string name="pref_privacy_capture_summary">Clears FLAG_SECURE on every activity</string>
     <string name="pref_privacy_detection">Block capture detection</string>
     <string name="pref_privacy_detection_summary">Blocks FB\'s screenshot/recording watchers</string>
+    <string name="pref_navigation_hide_reels">Hide Reels tab</string>
+    <string name="pref_navigation_hide_reels_summary">Remove only the Reels button from Facebook\'s top/bottom tab bar; Reels still opens from links and the menu</string>
+    <string name="pref_navigation_hide_marketplace">Hide Marketplace tab</string>
+    <string name="pref_navigation_hide_marketplace_summary">Remove only the Marketplace tab-bar button; Marketplace remains available elsewhere</string>
+    <string name="pref_navigation_hide_games">Hide Games tab</string>
+    <string name="pref_navigation_hide_games_summary">Remove only the Games/Gaming tab-bar button; games remain accessible from the menu and links</string>
     <string name="pref_navigation_activitylist">Activity list (Intent dump)</string>
     <string name="pref_navigation_activitylist_summary">Logs every hidden activity FB starts - action, URI, extras</string>
     <string name="pref_links_cleanurl">Unwrap l.php redirect links</string>
     <string name="pref_links_cleanurl_summary">Rewrites facebook.com/l.php?u=...&amp;fbclid=... URLs to the real destination before the browser opens them</string>
+    <string name="pref_links_external_browser">Open in external browser</string>
+    <string name="pref_links_external_browser_summary">Open outbound web links directly in your default browser instead of Facebook\'s in-app browser</string>
 
     <string name="pref_account_export">Export session</string>
     <string name="pref_account_export_summary">Copies the login (authentication/logged_in) files + cookies to Download/FacebookAppAdsRemover</string>

@@ -13,6 +13,13 @@
             app:summary="@string/pref_appearance_dark_summary"
             app:title="@string/pref_appearance_dark" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="appearance.amoled"
+            app:summary="@string/pref_appearance_amoled_summary"
+            app:title="@string/pref_appearance_amoled" />
+
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -42,6 +49,27 @@
         <SwitchPreferenceCompat
             android:defaultValue="false"
             app:iconSpaceReserved="false"
+            app:key="navigation.hideReelsTab"
+            app:summary="@string/pref_navigation_hide_reels_summary"
+            app:title="@string/pref_navigation_hide_reels" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="navigation.hideMarketplaceTab"
+            app:summary="@string/pref_navigation_hide_marketplace_summary"
+            app:title="@string/pref_navigation_hide_marketplace" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
+            app:key="navigation.hideGamesTab"
+            app:summary="@string/pref_navigation_hide_games_summary"
+            app:title="@string/pref_navigation_hide_games" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="false"
+            app:iconSpaceReserved="false"
             app:key="navigation.activityList"
             app:summary="@string/pref_navigation_activitylist_summary"
             app:title="@string/pref_navigation_activitylist" />
@@ -58,6 +86,13 @@
             app:key="links.cleanUrl"
             app:summary="@string/pref_links_cleanurl_summary"
             app:title="@string/pref_links_cleanurl" />
+
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            app:iconSpaceReserved="false"
+            app:key="links.externalBrowser"
+            app:summary="@string/pref_links_external_browser_summary"
+            app:title="@string/pref_links_external_browser" />
 
     </PreferenceCategory>
 

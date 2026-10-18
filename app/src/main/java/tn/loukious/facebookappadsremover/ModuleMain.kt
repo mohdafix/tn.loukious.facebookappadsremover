@@ -507,11 +507,9 @@ class ModuleMain : XposedModule() {
                     MethodCache.invalidateClass(context, "feed.processNewStories")
                 }
             }.onFailure { L.e(TAG, "Newsfeed filter installation failed", it) }
-            adsOptOutClass?.let {
-                runCatching {
-                    AdsOptOutHook.installCached(this, classLoader, it)
-                }.onFailure { L.e(TAG, "Ads opt-out installation failed", it) }
-            }
+            runCatching {
+                AdsOptOutHook.installCached(this, classLoader, adsOptOutClass)
+            }.onFailure { L.e(TAG, "Ads opt-out installation failed", it) }
             MarketplaceAdsHook.installFromCache(this, classLoader, context)
             GameAdsHook.installFromCache(this, classLoader, context)
             FeedGuardHook.installFromCache(this, classLoader, context)
@@ -558,16 +556,12 @@ class ModuleMain : XposedModule() {
             } else {
                 L.i(TAG, "Stories-tray anchor not found on this build — skipping")
             }
-            playerClass?.let {
-                runCatching {
-                    DownloadHook.installCached(this, classLoader, it)
-                }.onFailure { L.e(TAG, "Download hook installation failed", it) }
-            }
-            mediaSetupClass?.let {
-                runCatching {
-                    DownloadHook.installMediaSetupCached(this, classLoader, it)
-                }.onFailure { L.e(TAG, "Media-setup hook installation failed", it) }
-            }
+            runCatching {
+                DownloadHook.installCached(this, classLoader, playerClass)
+            }.onFailure { L.e(TAG, "Download hook installation failed", it) }
+            runCatching {
+                DownloadHook.installMediaSetupCached(this, classLoader, mediaSetupClass)
+            }.onFailure { L.e(TAG, "Media-setup hook installation failed", it) }
             if (contextualStoryState != "absent") {
                 runCatching {
                     ContextualDownloadHook.installStoryCached(

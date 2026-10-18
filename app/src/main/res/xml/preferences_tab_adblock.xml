@@ -34,12 +34,7 @@
             app:summary="@string/pref_ads_feedguard_summary"
             app:title="@string/pref_ads_feedguard" />
 
-        <SwitchPreferenceCompat
-            android:defaultValue="true"
-            app:iconSpaceReserved="false"
-            app:key="ads.reelsShopping"
-            app:summary="@string/pref_ads_reelsshopping_summary"
-            app:title="@string/pref_ads_reelsshopping" />
+
 
     </PreferenceCategory>
 

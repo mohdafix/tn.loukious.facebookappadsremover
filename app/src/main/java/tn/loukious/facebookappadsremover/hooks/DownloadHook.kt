@@ -2105,7 +2105,7 @@ object DownloadHook {
         // (mod loop at libnc.so.c 1071982).
         val selected = java.util.concurrent.atomic.AtomicInteger(
             items.indexOfFirst { it.label == "HD video" }.takeIf { it >= 0 } ?: 0)
-        var dialog: AlertDialog? = null
+        var dialog: android.app.Dialog? = null
 
         /** quick_link.option.* subtitle per item. */
         fun subtitle(q: Quality): String = when (q.tag) {
@@ -2196,10 +2196,31 @@ object DownloadHook {
         renderSelection(selected.get())
 
         val content = QuickDownloadDialogLayout(activity, list, actions)
-        dialog = AlertDialog.Builder(activity)
-            .setTitle("QUICK VIDEO DOWNLOAD") // quick_link.dialog.title
-            .setView(content) // quick_link.dialog.summary_format
-            .show()
+        val titleText = "QUICK VIDEO DOWNLOAD"
+
+        runCatching {
+            val bottomSheet = com.google.android.material.bottomsheet.BottomSheetDialog(activity)
+            val container = LinearLayout(activity).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(16), dp(16), dp(16), dp(8))
+                addView(TextView(activity).apply {
+                    text = titleText
+                    textSize = 16f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setPadding(dp(16), dp(4), dp(16), dp(4))
+                })
+                addView(content)
+            }
+            bottomSheet.setContentView(container)
+            bottomSheet.show()
+            dialog = bottomSheet
+        }.onFailure {
+            L.w(TAG, "bottom sheet failed — falling back to dialog", it)
+            dialog = AlertDialog.Builder(activity)
+                .setTitle(titleText)
+                .setView(content)
+                .show()
+        }
     }
 
     /** YJMDIpfpsAneohZjKEuU.onClick port (libnc.so.c 1056161). */

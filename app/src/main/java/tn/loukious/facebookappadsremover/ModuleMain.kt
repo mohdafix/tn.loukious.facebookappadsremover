@@ -562,6 +562,7 @@ class ModuleMain : XposedModule() {
             runCatching {
                 DownloadHook.installMediaSetupCached(this, classLoader, mediaSetupClass)
             }.onFailure { L.e(TAG, "Media-setup hook installation failed", it) }
+            L.i(TAG, "Installing contextual hooks from cache: storyState=$contextualStoryState, reelState=$contextualReelState, storyMethods=${methods[ContextualDownloadHook.STORY_CACHE_KEY]?.size}, reelMethods=${methods[ContextualDownloadHook.REEL_CACHE_KEY]?.size}")
             if (contextualStoryState != "absent") {
                 runCatching {
                     ContextualDownloadHook.installStoryCached(

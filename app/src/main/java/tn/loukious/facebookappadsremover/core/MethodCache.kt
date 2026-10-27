@@ -23,7 +23,7 @@ object MethodCache {
      */
     private const val KEY_SCHEMA = "schema"
     private const val KEY_MODULE_VERSION = "moduleVersion"
-    private const val CACHE_SCHEMA = 5 // FB 584 constructor factory + marker & nested player field
+    private const val CACHE_SCHEMA = 7 // FB 584 sidebar assembly refinement
     private const val KEY_TARGETS = "targets" // "key=Class#m:p,p;Class#m:p;\n..." per line
     private const val KEY_CLASS_PREFIX = "class:"
 

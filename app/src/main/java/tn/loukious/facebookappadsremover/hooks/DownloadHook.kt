@@ -468,21 +468,46 @@ object DownloadHook {
     /** Native reel-sidebar entry point: open this item's existing quality picker. */
     fun openReelDownload(context: Context?, playerHost: Any?): Boolean {
         if (!Settings.getBoolean(Settings.DOWNLOAD_SHOW_ICON, true)) return false
-        val videoId = videoIdFromPlayerParamsIn(playerHost) ?: return false
-        val data = videoById(videoId) ?: return false
+        val videoId = videoIdFromPlayerParamsIn(playerHost)
+        val data = (videoId?.let(::videoById)) ?: activeVideoId?.let(::videoById) ?: current ?: dataFromPlayerHost(playerHost, videoId)
         val activity = context as? Activity ?: currentActivity ?: return false
-        main.post { openQuickDownload(activity, data) }
-        return true
+        if (data != null) {
+            main.post { openQuickDownload(activity, data) }
+            return true
+        }
+        L.w(TAG, "reel download tapped but no video data available for $videoId")
+        Toast.makeText(activity, "Video not ready yet — please wait a moment", Toast.LENGTH_SHORT).show()
+        return false
     }
 
     /** Native reel-sidebar entry point for the existing Page repost flow. */
     fun openReelRepost(context: Context?, playerHost: Any?): Boolean {
         if (!Settings.getBoolean(Settings.DOWNLOAD_SHOW_ICON, true)) return false
-        val videoId = videoIdFromPlayerParamsIn(playerHost) ?: return false
-        val data = videoById(videoId) ?: return false
+        val videoId = videoIdFromPlayerParamsIn(playerHost)
+        val data = (videoId?.let(::videoById)) ?: activeVideoId?.let(::videoById) ?: current ?: dataFromPlayerHost(playerHost, videoId) ?: return false
         val activity = context as? Activity ?: currentActivity ?: return false
         main.post { Repost.open(activity, data) }
         return true
+    }
+
+    private fun dataFromPlayerHost(playerHost: Any?, knownId: String?): VideoData? {
+        playerHost ?: return null
+        val urls = collectHttpUrls(playerHost, 3)
+        val videos = urls.filter(::looksLikeVideoFile).distinct()
+        if (videos.isEmpty()) return null
+        val id = knownId ?: activeVideoId ?: "reel_${System.identityHashCode(playerHost)}"
+        val qualities = videos.mapIndexed { index, url ->
+            Quality(if (index == 0) "Reel video" else "Reel video ${index + 1}", url, "mp4")
+        }
+        return VideoData(
+            videoId = id,
+            mediaDump = "",
+            qualities = qualities,
+            audioUrl = null,
+            postUrl = WATCH_PREFIX + id,
+            thumbnailUrl = null,
+            playlist = null,
+        )
     }
 
     /**
@@ -689,10 +714,12 @@ object DownloadHook {
             val (node, depth) = queue.removeFirst()
             nodes++
             if (node.javaClass.name == PARAMS_CLASS) {
-                return runCatching {
-                    node.toString().removePrefix(VIDEO_ID_MARKER)
-                        .takeIf { it.isNotBlank() && it != NULL_MARKER }
-                }.getOrNull()
+                val str = node.toString()
+                val idFromRegex = Regex("VideoId:\\s*([^,\\s}]+)").find(str)?.groupValues?.get(1)
+                val id = (idFromRegex ?: str.removePrefix(VIDEO_ID_MARKER)).trim()
+                if (id.isNotBlank() && id != NULL_MARKER && !id.contains(PARAMS_CLASS)) {
+                    return id
+                }
             }
             if (depth >= 3) continue
 
@@ -917,11 +944,11 @@ object DownloadHook {
             val uris = resolveSourceUriFields(src.javaClass)
                 ?: run { L.w(TAG, "source Uri fields not resolvable — capture skipped"); return }
             // Dex declaration order: sd, hd, ABR manifest (stable layout).
-            val sdUri = (uris[0].get(src) as? android.net.Uri)?.toString()
+            val sdUri = (uris.getOrNull(0)?.get(src) as? android.net.Uri)?.toString()
                 ?.takeIf { it.startsWith("http") }
-            val hdUri = (uris[1].get(src) as? android.net.Uri)?.toString()
+            val hdUri = (uris.getOrNull(1)?.get(src) as? android.net.Uri)?.toString()
                 ?.takeIf { it.startsWith("http") }
-            val manifestUri = (uris[2].get(src) as? android.net.Uri)?.toString()
+            val manifestUri = (uris.getOrNull(2)?.get(src) as? android.net.Uri)?.toString()
             L.i(TAG, "PARAMS videoId=$id hd=${hdUri != null} sd=${sdUri != null} " +
                     "manifest=${manifestUri != null}")
 
@@ -977,8 +1004,8 @@ object DownloadHook {
     private fun resolveSourceUriFields(srcCls: Class<*>): List<java.lang.reflect.Field>? {
         sourceUriFields?.let { return it }
         val uris = srcCls.declaredFields.filter { it.type == android.net.Uri::class.java }
-        if (uris.size != 3) {
-            L.w(TAG, "expected 3 Uri fields on ${srcCls.name}, found ${uris.size}")
+        if (uris.size < 2) {
+            L.w(TAG, "expected at least 2 Uri fields on ${srcCls.name}, found ${uris.size}")
             return null
         }
         uris.forEach { it.isAccessible = true }

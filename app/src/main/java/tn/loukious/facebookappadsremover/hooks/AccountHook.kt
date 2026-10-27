@@ -146,7 +146,7 @@ object AccountHook {
         // array walked into an HTTP Cookie header → cookieHttp + FBHTTPCOOKIE.
         stringField(viewerContext, "mSessionCookiesString")?.let { raw ->
             val sanitized = raw.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
-            if (sanitized.isNotBlank()) {
+            if (sanitized.isNotBlank() && sanitized != cookieJson) {
                 cookieJson = sanitized
                 put(KEY_COOKIE_JSON, sanitized)
                 jsonToHttpCookie(sanitized)?.let { http ->
@@ -159,7 +159,7 @@ object AccountHook {
 
         // mAuthToken → FBTOKEN.
         stringField(viewerContext, "mAuthToken")?.let { v ->
-            if (v.isNotBlank()) {
+            if (v.isNotBlank() && v != token) {
                 token = v
                 put(KEY_AUTH_TOKEN, v)
                 L.i(TAG, "ViewerContext Token updated (${mask(v)})")
@@ -169,14 +169,17 @@ object AccountHook {
         // mUsername → FBUSERNAME (pref only, like the mod).
         stringField(viewerContext, "mUsername")?.let { v ->
             if (v.isNotBlank()) {
-                put(KEY_USERNAME, v)
-                L.i(TAG, "ViewerContext UserName updated ($v)")
+                val current = prefs.getString(KEY_USERNAME, null)
+                if (v != current) {
+                    put(KEY_USERNAME, v)
+                    L.i(TAG, "ViewerContext UserName updated ($v)")
+                }
             }
         }
 
         // mUserId → FBUSERID.
         stringField(viewerContext, "mUserId")?.let { v ->
-            if (v.isNotBlank()) {
+            if (v.isNotBlank() && v != userId) {
                 userId = v
                 put(KEY_USER_ID, v)
                 L.i(TAG, "ViewerContext UserId updated ($v)")

@@ -370,7 +370,7 @@ class ModuleMain : XposedModule() {
             return false
         }
         if (!ContextualDownloadHook.isReelAbsent(contextualReelState) &&
-            methods[ContextualDownloadHook.REEL_CACHE_KEY]?.size != 4
+            methods[ContextualDownloadHook.REEL_CACHE_KEY]?.let { it.size in 2..4 } != true
         ) {
             L.i(TAG, "Contextual reel cache missing native-sidebar methods — rescanning")
             return false

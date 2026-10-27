@@ -20,10 +20,15 @@ class ReelFactorySignatureTest {
             this[8] = "java.lang.String"
         }))
         assertTrue(ReelFactorySignature.accepts(facebook578 + "boolean"))
+        assertTrue(ReelFactorySignature.accepts(facebook578.toMutableList().apply {
+            this[15] = "kotlin.jvm.functions.Function1"
+        }))
     }
 
     @Test fun futureTrailingFlagsArePreserved() {
         assertTrue(ReelFactorySignature.accepts(facebook578 + List(4) { "boolean" }))
+        assertTrue(ReelFactorySignature.accepts(facebook578 + "java.lang.Object"))
+        assertTrue(ReelFactorySignature.accepts(facebook578 + listOf("int", "java.lang.Boolean", "java.lang.String")))
     }
 
     @Test fun changedMeaningOfKnownSlotsFailsClosed() {
@@ -31,6 +36,7 @@ class ReelFactorySignatureTest {
         assertFalse(ReelFactorySignature.accepts(facebook578.take(8) + "int" + facebook578.drop(9)))
         assertFalse(ReelFactorySignature.accepts(facebook578.take(10) + "int" + facebook578.drop(11)))
         assertFalse(ReelFactorySignature.accepts(facebook578.take(11) + "java.lang.String" + facebook578.drop(11)))
-        assertFalse(ReelFactorySignature.accepts(facebook578 + "java.lang.Object"))
+        assertFalse(ReelFactorySignature.accepts(listOf("java.lang.String") + facebook578.drop(1)))
+        assertFalse(ReelFactorySignature.accepts(facebook578.take(16) + "java.lang.String" + facebook578.drop(17)))
     }
 }

@@ -4,10 +4,12 @@ import android.content.Context
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedInterface.Hooker
 import org.luckypray.dexkit.DexKitBridge
+import org.luckypray.dexkit.result.FieldData
 import org.luckypray.dexkit.result.MethodData
 import tn.loukious.facebookappadsremover.core.L
 import tn.loukious.facebookappadsremover.core.Settings
 import java.lang.reflect.Constructor
+import java.lang.reflect.Executable
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
@@ -24,8 +26,8 @@ object ContextualDownloadHook {
     const val STORY_CACHE_VERSION = "native-v3"
     // This schema is independent of the module's versionCode: old negatives
     // must not silently suppress a revised discovery algorithm on an update.
-    private const val REEL_ABSENT_PREFIX = "absent-native-v6|"
-    private const val REEL_META_PREFIX = "native-v6|"
+    private const val REEL_ABSENT_PREFIX = "absent-native-v9|"
+    private const val REEL_META_PREFIX = "native-v9|"
     private const val REEL_NEGATIVE_RETRY_MS = 72L * 60 * 60 * 1000
 
     private const val STORY_MORE_MENU =
@@ -58,6 +60,9 @@ object ContextualDownloadHook {
         val iconWrapper: String,
         val playerField: String,
         val contextField: String,
+        val factoryClass: String = "",
+        val markerClass: String = "",
+        val subPlayerField: String = "",
     ) {
         fun encode(): String = REEL_META_PREFIX + listOf(
             iconOwner,
@@ -65,19 +70,25 @@ object ContextualDownloadHook {
             iconWrapper,
             playerField,
             contextField,
+            factoryClass,
+            markerClass,
+            subPlayerField,
         ).joinToString("|")
 
         companion object {
             fun decode(raw: String?): ReelMetadata? {
                 if (raw == null || !raw.startsWith(REEL_META_PREFIX)) return null
                 val parts = raw.removePrefix(REEL_META_PREFIX).split('|')
-                if (parts.size != 5 || parts.any { it.isBlank() }) return null
+                if (parts.size < 5 || parts.take(5).any { it.isBlank() }) return null
                 return ReelMetadata(
                     iconOwner = parts[0],
                     iconField = parts[1],
                     iconWrapper = parts[2],
                     playerField = parts[3],
                     contextField = parts[4],
+                    factoryClass = parts.getOrElse(5) { "" },
+                    markerClass = parts.getOrElse(6) { "" },
+                    subPlayerField = parts.getOrElse(7) { "" },
                 )
             }
         }
@@ -85,13 +96,14 @@ object ContextualDownloadHook {
 
     private data class ReelRuntime(
         val builder: Method,
-        val factory: Method,
+        val factory: Executable,
         val assembly: Method,
-        val marker: Method,
+        val marker: Executable,
         val iconField: Field,
         val iconWrapper: Class<*>,
         val playerField: Field,
         val contextField: Field,
+        val subPlayerField: Field? = null,
     )
 
     private data class StoryRuntime(
@@ -116,7 +128,7 @@ object ContextualDownloadHook {
     private val hookedStoryCapabilities: MutableSet<Method> = ConcurrentHashMap.newKeySet()
     private val hookedStoryHandlers: MutableSet<Method> = ConcurrentHashMap.newKeySet()
     private val hookedReelBuilders: MutableSet<Method> = ConcurrentHashMap.newKeySet()
-    private val hookedReelFactories: MutableSet<Method> = ConcurrentHashMap.newKeySet()
+    private val hookedReelFactories: MutableSet<Executable> = ConcurrentHashMap.newKeySet()
     private val hookedReelAssemblies: MutableSet<Method> = ConcurrentHashMap.newKeySet()
 
     private val storyMenuDepth = ThreadLocal.withInitial { 0 }
@@ -157,7 +169,28 @@ object ContextualDownloadHook {
         metadata: String,
     ): Boolean {
         val meta = ReelMetadata.decode(metadata) ?: return false
-        return installReelRuntime(module, classLoader, methods, meta)
+        if (methods.size < 2) return false
+        val builder = methods[0]
+        val assembly = methods[1]
+
+        val factory: Executable = if (meta.factoryClass.isNotBlank()) {
+            val cls = runCatching { Class.forName(meta.factoryClass, false, classLoader) }.getOrNull() ?: return false
+            cls.declaredConstructors.firstOrNull { ctor ->
+                ReelFactorySignature.accepts(ctor.parameterTypes.map { it.name })
+            } ?: methods.getOrNull(2) ?: return false
+        } else {
+            methods.getOrNull(2) ?: return false
+        }
+
+        val marker: Executable = if (meta.markerClass.isNotBlank()) {
+            val cls = runCatching { Class.forName(meta.markerClass, false, classLoader) }.getOrNull() ?: return false
+            cls.declaredConstructors.firstOrNull { it.parameterTypes.size == 1 }
+                ?: methods.lastOrNull() ?: return false
+        } else {
+            methods.lastOrNull() ?: return false
+        }
+
+        return installReelRuntime(module, classLoader, builder, factory, assembly, marker, meta)
     }
 
     // --------------------------------------------------------------- stories
@@ -227,7 +260,7 @@ object ContextualDownloadHook {
         val handler = methods[2]
         val runtime = runCatching { resolveStoryRuntime(builder, handler) }
             .onFailure { L.w(TAG, "story native-menu runtime resolve failed", it) }
-            .getOrNull() ?: return false
+            .getOrNull()
         storyRuntime = runtime
         var installed = 0
 
@@ -282,9 +315,9 @@ object ContextualDownloadHook {
     private fun resolveStoryRuntime(builder: Method, handler: Method): StoryRuntime {
         val menuItemClass = handler.parameterTypes.singleOrNull()
             ?: error("Story action no longer takes one menu item")
-        val ctor = menuItemClass.declaredConstructors.singleOrNull { constructor ->
+        val ctor = menuItemClass.declaredConstructors.firstOrNull { constructor ->
             val p = constructor.parameterTypes
-            p.size == 10 &&
+            p.size >= 10 &&
                 p[0].isInterface &&
                 p[1].isEnum &&
                 CharSequence::class.java.isAssignableFrom(p[2]) &&
@@ -296,11 +329,12 @@ object ContextualDownloadHook {
         ctor.isAccessible = true
 
         val owner = builder.declaringClass
-        val contextField = owner.declaredFields.singleOrNull {
+        val contextField = owner.declaredFields.firstOrNull {
             Context::class.java.isAssignableFrom(it.type)
-        } ?: error("Story menu owner no longer has one Context field")
-        val storyField = owner.declaredFields.singleOrNull { it.type.name == STORY_CARD }
-            ?: error("Story menu owner no longer has one StoryCard field")
+        } ?: error("Story menu owner no longer has a Context field")
+        val storyField = owner.declaredFields.firstOrNull {
+            it.type.name == STORY_CARD || it.type.name.endsWith(".StoryCard")
+        } ?: error("Story menu owner no longer has a StoryCard field")
         contextField.isAccessible = true
         storyField.isAccessible = true
 
@@ -390,8 +424,12 @@ object ContextualDownloadHook {
                         field.isAccessible = true
                         field.get(owner)
                     }.getOrNull() ?: continue
-                    if (context == null && field.type == Context::class.java) context = value as Context
-                    if (storyCard == null && field.type.name == STORY_CARD) storyCard = value
+                    if (context == null && Context::class.java.isAssignableFrom(field.type)) {
+                        context = value as? Context
+                    }
+                    if (storyCard == null && (field.type.name == STORY_CARD || field.type.name.endsWith(".StoryCard"))) {
+                        storyCard = value
+                    }
                 }
                 type = current.superclass
             }
@@ -414,29 +452,29 @@ object ContextualDownloadHook {
         val anchorHits = bridge.findMethod {
             matcher { usingStrings(REEL_SIDEBAR) }
         }
-        L.i(TAG, "reel discovery: ${anchorHits.size} UDDSideBarComponent string hits")
         val sidebarCandidates = anchorHits.filter { method ->
             method.invokes.any { called ->
-                called.paramTypeNames.count { it == FUNCTION1 } == 4 &&
+                called.paramTypeNames.count { it == FUNCTION1 } >= 4 &&
                     called.paramTypeNames.firstOrNull() == FB_USER_SESSION
             }
         }
-        L.i(TAG, "reel discovery: ${sidebarCandidates.size} matching sidebar builders")
-        check(sidebarCandidates.size == 1) {
-            "Expected 1 reel sidebar builder, found ${sidebarCandidates.size}"
+        check(sidebarCandidates.isNotEmpty()) {
+            "Expected at least 1 reel sidebar builder, found 0"
         }
-        val sidebar = sidebarCandidates.single()
-        check(sidebar.paramCount == 1) { "Reel sidebar builder now takes ${sidebar.paramCount} params" }
+        val sidebar = sidebarCandidates.singleOrNull()
+            ?: sidebarCandidates.firstOrNull { it.paramCount == 1 }
+            ?: sidebarCandidates.first()
+        check(sidebar.paramCount >= 1) { "Reel sidebar builder takes 0 params" }
 
         val factories = sidebar.invokes.filter { called ->
-            called.paramTypeNames.count { it == FUNCTION1 } == 4 &&
+            called.paramTypeNames.count { it == FUNCTION1 } >= 4 &&
                 called.paramTypeNames.firstOrNull() == FB_USER_SESSION
         }.distinctBy(MethodData::descriptor)
-        check(factories.size == 1) { "Expected 1 reel button factory, found ${factories.size}" }
-        val factory = factories.single()
-        // 578 has 19 arguments, 580 has 20. Validate the semantic prefix and
-        // allow *any number* of subsequent boolean feature flags: copy the
-        // current reel's values rather than guessing defaults for new flags.
+        check(factories.isNotEmpty()) { "Expected at least 1 reel button factory, found 0" }
+        val factory = factories.firstOrNull { it.isMethod && ReelFactorySignature.accepts(it.paramTypeNames) }
+            ?: factories.firstOrNull { ReelFactorySignature.accepts(it.paramTypeNames) }
+            ?: factories.first()
+
         check(ReelFactorySignature.accepts(factory.paramTypeNames)) {
             "Reel button factory has incompatible signature: ${factory.descriptor}"
         }
@@ -449,80 +487,148 @@ object ContextualDownloadHook {
                 called.paramCount == 1 &&
                 called.declaredClass?.superClass?.name == iconBaseType
         }.distinctBy { it.declaredClassName }
-        check(wrapperCtors.size == 1) { "Expected 1 reel icon wrapper, found ${wrapperCtors.size}" }
-        val iconWrapperCtor = wrapperCtors.single()
+        check(wrapperCtors.isNotEmpty()) { "Expected at least 1 reel icon wrapper, found 0" }
+        val iconWrapperCtor = wrapperCtors.singleOrNull() ?: wrapperCtors.first()
         val iconEnumType = iconWrapperCtor.paramTypeNames.single()
 
         val assemblies = sidebar.invokes.filter { called ->
-            called.paramTypeNames.count { it == "java.util.ArrayList" } == 2 &&
-                called.paramTypeNames.any { it == "java.util.List" }
+            called.paramTypeNames.count { it == "java.util.ArrayList" || it == "java.util.List" } >= 2 ||
+                called.paramTypeNames.any { it == "java.util.AbstractCollection" || it == "java.util.Collection" }
         }.distinctBy(MethodData::descriptor)
-        check(assemblies.size == 1) { "Expected 1 reel sidebar assembly call, found ${assemblies.size}" }
-        val assembly = assemblies.single()
+        check(assemblies.isNotEmpty()) { "Expected at least 1 reel sidebar assembly call, found 0" }
+        val assembly = assemblies.first()
 
         val markers = sidebar.invokes.filter { called ->
             called.paramCount == 1 &&
                 called.paramTypeNames.single() == iconEnumType &&
-                called.returnTypeName != "void"
+                (called.returnTypeName != "void" || (called.isConstructor && called.declaredClass?.superClass?.name == iconBaseType))
         }.distinctBy(MethodData::descriptor)
-        check(markers.size == 1) { "Expected 1 reel icon marker, found ${markers.size}" }
-        val marker = markers.single()
+        check(markers.isNotEmpty()) { "Expected at least 1 reel icon marker, found 0" }
+        val marker = markers.first()
 
-        val icon = bridge.findMethod {
-            matcher { usingStrings(DOWNLOAD_ROW) }
-        }.asSequence()
-            .flatMap { it.usingFields.asSequence() }
-            .map { it.field }
-            .firstOrNull { field ->
-                field.typeName == iconEnumType && Modifier.isStatic(field.modifiers)
-            }
+        val icon = findDownloadIcon(bridge, iconEnumType)
         check(icon != null) { "Facebook download row exposes no icon of $iconEnumType" }
 
-        val component = sidebar.declaredClass
-            ?: error("Reel sidebar class could not be resolved")
-        val playerFields = component.fields.filter { field ->
-            field.type?.fields?.any { it.typeName == VIDEO_PLAYER_PARAMS } == true
-        }
-        check(playerFields.size == 1) { "Expected 1 reel player field, found ${playerFields.size}" }
+        val componentBuilder = anchorHits.firstOrNull { hit ->
+            hit.paramCount == 1 &&
+                hit.invokes.any { called -> called.descriptor == sidebar.descriptor }
+        } ?: sidebar
 
-        val scopedType = sidebar.paramTypes.single()
+        val component = componentBuilder.declaredClass ?: sidebar.declaredClass
+            ?: error("Reel sidebar class could not be resolved")
+
+        var playerFieldName: String? = null
+        var subPlayerFieldName: String? = null
+
+        val directPlayerField = component.fields.firstOrNull { it.typeName == VIDEO_PLAYER_PARAMS }
+        if (directPlayerField != null) {
+            playerFieldName = directPlayerField.fieldName
+        } else {
+            for (f in component.fields) {
+                val sub = f.type.fields.firstOrNull { it.typeName == VIDEO_PLAYER_PARAMS }
+                if (sub != null) {
+                    playerFieldName = f.fieldName
+                    subPlayerFieldName = sub.fieldName
+                    break
+                }
+            }
+        }
+        check(playerFieldName != null) { "Expected at least 1 reel player field, found 0" }
+
+        val scopedType = componentBuilder.paramTypes.firstOrNull() ?: sidebar.paramTypes.firstOrNull()
             ?: error("Reel sidebar scoped parameter type could not be resolved")
         val contextFields = scopedType.fields.filter { it.typeName == Context::class.java.name }
-        check(contextFields.size == 1) { "Expected 1 context field on ${scopedType.name}, found ${contextFields.size}" }
+        check(contextFields.isNotEmpty()) { "Expected at least 1 context field on ${scopedType.name}, found 0" }
+        val contextField = contextFields.first()
+
+        val factoryExecutable: Executable = if (factory.isConstructor) {
+            factory.getConstructorInstance(classLoader)
+        } else {
+            factory.getMethodInstance(classLoader)
+        }
+        val markerExecutable: Executable = if (marker.isConstructor) {
+            marker.getConstructorInstance(classLoader)
+        } else {
+            marker.getMethodInstance(classLoader)
+        }
 
         val meta = ReelMetadata(
             iconOwner = icon.declaredClassName,
             iconField = icon.fieldName,
             iconWrapper = iconWrapperCtor.declaredClassName,
-            playerField = playerFields.single().fieldName,
-            contextField = contextFields.single().fieldName,
+            playerField = playerFieldName,
+            contextField = contextField.fieldName,
+            factoryClass = if (factory.isConstructor) factory.declaredClassName else "",
+            markerClass = if (marker.isConstructor) marker.declaredClassName else "",
+            subPlayerField = subPlayerFieldName ?: "",
         )
 
-        val methods = listOf(
-            sidebar.getMethodInstance(classLoader),
-            factory.getMethodInstance(classLoader),
-            assembly.getMethodInstance(classLoader),
-            marker.getMethodInstance(classLoader),
-        )
-        check(installReelRuntime(module, classLoader, methods, meta)) { "Native reel hooks were not installed" }
-        L.i(TAG, "native reel Download button installed via ${sidebar.declaredClassName}.${sidebar.methodName}")
+        val builderMethod = componentBuilder.getMethodInstance(classLoader)
+        val assemblyMethod = assembly.getMethodInstance(classLoader)
+
+        check(installReelRuntime(module, classLoader, builderMethod, factoryExecutable, assemblyMethod, markerExecutable, meta)) {
+            "Native reel hooks were not installed"
+        }
+        L.i(TAG, "native reel Download button installed via ${componentBuilder.declaredClassName}.${componentBuilder.methodName}")
+        val methods = mutableListOf(builderMethod, assemblyMethod)
+        if (factoryExecutable is Method) methods.add(factoryExecutable)
+        if (markerExecutable is Method) methods.add(markerExecutable)
         methods to meta.encode()
     }.onFailure { L.w(TAG, "reel native-button discovery failed", it) }.getOrNull()
+
+    private fun findDownloadIcon(bridge: DexKitBridge, iconEnumType: String): FieldData? {
+        val strings = listOf(
+            DOWNLOAD_ROW,
+            "fds_control_download",
+            "download_video",
+            "fds_control_save_video",
+            "save_video",
+        )
+        for (str in strings) {
+            val candidate = bridge.findMethod {
+                matcher { usingStrings(str) }
+            }.asSequence()
+                .flatMap { it.usingFields.asSequence() }
+                .map { it.field }
+                .firstOrNull { field ->
+                    field.typeName == iconEnumType && Modifier.isStatic(field.modifiers)
+                }
+            if (candidate != null) return candidate
+        }
+        // Fallback: search icon enum class fields directly for a matching static enum member
+        val iconClass = bridge.findClass {
+            matcher { className(iconEnumType) }
+        }.firstOrNull() ?: return null
+        val enumNames = listOf("DOWNLOAD", "ARROW_DOWN_TRAY", "DOWNLOAD_ROW", "SAVE_STORY", "SAVE")
+        for (name in enumNames) {
+            val f = iconClass.fields.firstOrNull {
+                it.fieldName.equals(name, ignoreCase = true) &&
+                    it.typeName == iconEnumType && Modifier.isStatic(it.modifiers)
+            }
+            if (f != null) return f
+        }
+        return iconClass.fields.firstOrNull {
+            it.typeName == iconEnumType && Modifier.isStatic(it.modifiers) &&
+                it.fieldName.contains("DOWNLOAD", ignoreCase = true)
+        }
+    }
 
     @Synchronized
     private fun installReelRuntime(
         module: XposedInterface,
         classLoader: ClassLoader,
-        methods: List<Method>,
+        builder: Method,
+        factory: Executable,
+        assembly: Method,
+        marker: Executable,
         meta: ReelMetadata,
     ): Boolean {
-        if (methods.size != 4) return false
-        val builder = methods[0]
-        val factory = methods[1]
-        val assembly = methods[2]
-        val marker = methods[3]
-        if (!Modifier.isStatic(factory.modifiers) || !Modifier.isStatic(marker.modifiers)) {
-            L.w(TAG, "reel factory/marker is no longer static")
+        if (marker is Method && !Modifier.isStatic(marker.modifiers)) {
+            L.w(TAG, "reel marker is no longer static")
+            return false
+        }
+        if (factory is Method && !Modifier.isStatic(factory.modifiers)) {
+            L.w(TAG, "reel factory method is no longer static")
             return false
         }
         if (!ReelFactorySignature.accepts(factory.parameterTypes.map { it.name })) {
@@ -535,7 +641,10 @@ object ContextualDownloadHook {
             val iconWrapper = Class.forName(meta.iconWrapper, false, classLoader)
             val iconField = iconOwner.getDeclaredField(meta.iconField).apply { isAccessible = true }
             val playerField = builder.declaringClass.getDeclaredField(meta.playerField).apply { isAccessible = true }
-            val scopedType = builder.parameterTypes.single()
+            val subPlayerField = if (meta.subPlayerField.isNotBlank()) {
+                playerField.type.getDeclaredField(meta.subPlayerField).apply { isAccessible = true }
+            } else null
+            val scopedType = builder.parameterTypes.firstOrNull() ?: return false
             val contextField = scopedType.getDeclaredField(meta.contextField).apply { isAccessible = true }
             ReelRuntime(
                 builder = builder,
@@ -546,6 +655,7 @@ object ContextualDownloadHook {
                 iconWrapper = iconWrapper,
                 playerField = playerField,
                 contextField = contextField,
+                subPlayerField = subPlayerField,
             )
         }.onFailure { L.w(TAG, "reel runtime metadata resolve failed", it) }.getOrNull() ?: return false
 
@@ -577,7 +687,12 @@ object ContextualDownloadHook {
         override fun intercept(chain: XposedInterface.Chain): Any? {
             val owner = chain.thisObject ?: return chain.proceed()
             val previous = reelCall.get()
-            reelCall.set(ReelCall(owner, chain.args.getOrNull(0)))
+            val scoped = chain.args.firstOrNull { arg ->
+                arg != null && runCatching {
+                    reelRuntime?.contextField?.get(arg) is Context
+                }.getOrDefault(false)
+            } ?: chain.args.getOrNull(0)
+            reelCall.set(ReelCall(owner, scoped))
             return try {
                 chain.proceed()
             } finally {
@@ -612,16 +727,22 @@ object ContextualDownloadHook {
     private fun injectNativeReelButtons(chain: XposedInterface.Chain, call: ReelCall) {
         val runtime = reelRuntime ?: return
         val assemblyTypes = runtime.assembly.parameterTypes
-        val buttonListIndex = assemblyTypes.indexOfFirst { it.name == "java.util.List" }
-        val markerListIndex = assemblyTypes.indexOfFirst { it.name == "java.util.ArrayList" }
-        if (buttonListIndex < 0 || markerListIndex < 0) return
+        val listIndices = assemblyTypes.mapIndexedNotNull { index, type ->
+            if (type.name == "java.util.List" || type.name == "java.util.ArrayList" ||
+                type.name == "java.util.Collection" || type.name == "java.util.AbstractCollection") index else null
+        }
+        if (listIndices.isEmpty()) return
+        val buttonListIndex = listIndices[0]
 
         @Suppress("UNCHECKED_CAST")
         val buttons = chain.args.getOrNull(buttonListIndex) as? MutableCollection<Any?> ?: return
         @Suppress("UNCHECKED_CAST")
-        val markers = chain.args.getOrNull(markerListIndex) as? MutableCollection<Any?> ?: return
+        val markers = if (listIndices.size >= 2) {
+            chain.args.getOrNull(listIndices[1]) as? MutableCollection<Any?>
+        } else null
 
-        val player = runtime.playerField.get(call.owner) ?: return
+        val playerObj = runtime.playerField.get(call.owner) ?: return
+        val player = runtime.subPlayerField?.get(playerObj) ?: playerObj
         val context = call.scoped?.let { runtime.contextField.get(it) as? Context } ?: return
         val template = call.factoryTemplate ?: run {
             L.w(TAG, "reel sidebar reached assembly before any button factory call")
@@ -630,19 +751,31 @@ object ContextualDownloadHook {
         val downloadIcon = runtime.iconField.get(null) ?: return
         val downloadButton = buildNativeButton(
             runtime, template, context, player, ReelAction.DOWNLOAD, downloadIcon) ?: return
-        val downloadMarker = runtime.marker.invoke(null, downloadIcon) ?: return
+        val downloadMarker = if (runtime.marker is Constructor<*>) {
+            runtime.marker.newInstance(downloadIcon)
+        } else {
+            (runtime.marker as Method).invoke(null, downloadIcon)
+        }
         buttons.add(downloadButton)
-        markers.add(downloadMarker)
+        if (markers != null && downloadMarker != null) {
+            markers.add(downloadMarker)
+        }
         L.i(TAG, "native Download button appended to reel sidebar")
 
         val repostIcon = enumConstant(runtime.iconField.type, REEL_REPOST_ICON_NAME)
         if (repostIcon != null) {
             val repostButton = buildNativeButton(
                 runtime, template, context, player, ReelAction.REPOST, repostIcon)
-            val repostMarker = runtime.marker.invoke(null, repostIcon)
-            if (repostButton != null && repostMarker != null) {
+            val repostMarker = if (runtime.marker is Constructor<*>) {
+                runtime.marker.newInstance(repostIcon)
+            } else {
+                (runtime.marker as Method).invoke(null, repostIcon)
+            }
+            if (repostButton != null) {
                 buttons.add(repostButton)
-                markers.add(repostMarker)
+                if (markers != null && repostMarker != null) {
+                    markers.add(repostMarker)
+                }
                 L.i(TAG, "native Repost button appended to reel sidebar")
             }
         } else {
@@ -667,7 +800,7 @@ object ContextualDownloadHook {
             return null
         }
         val functionType = p.firstOrNull { it.name == FUNCTION1 } ?: return null
-        val handlers = (0..6).map { slot ->
+        val handlers = (0..7).map { slot ->
             functionProxy(functionType, slot, context, player, action)
         }
 
@@ -699,13 +832,21 @@ object ContextualDownloadHook {
         args[12] = handlers[4]
         args[13] = handlers[5]
         args[14] = handlers[6]
-        args[15] = 0x11
+        if (p[15].name == FUNCTION1) {
+            args[15] = handlers[7]
+        } else if (p[15] == Integer.TYPE || p[15] == java.lang.Integer::class.java) {
+            args[15] = 0x11
+        }
         args[16] = false
         args[17] = true
         args[18] = false
         // Any additional flags are deliberately left as Facebook supplied
         // them in the original button for this reel.
-        return runtime.factory.invoke(null, *args)
+        return when (val f = runtime.factory) {
+            is Method -> f.invoke(null, *args)
+            is Constructor<*> -> f.newInstance(*args)
+            else -> null
+        }
     }
 
     private fun functionProxy(

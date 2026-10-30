@@ -41,6 +41,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import org.luckypray.dexkit.DexKitBridge
 import java.io.File
 import java.lang.reflect.Method
+import kotlin.concurrent.thread
 
 /**
  * Modern (libxposed API) module entry point.
@@ -295,8 +296,15 @@ class ModuleMain : XposedModule() {
             // minutes-long scan no hooks exist, which is exactly when ads slip
             // through on every cold start without the cache.
             if (installFromCache(classLoader, context)) return
+            // The scan must stay off the main thread: this path runs inside
+            // Application.onCreate, and blocking it for the whole scan gets the
+            // process killed for "failed to complete startup" before any hook
+            // or cache write lands.
             L.i(TAG, "No discovery cache — running full DexKit scan")
-            runDiscovery(classLoader, context)
+            thread(name = "FBAR-Discovery", isDaemon = true) {
+                runCatching { runDiscovery(classLoader, context) }
+                    .onFailure { L.e(TAG, "Discovery thread failed", it) }
+            }
         }
     }
 
@@ -499,17 +507,23 @@ class ModuleMain : XposedModule() {
                 // needed when that cache is empty (first launch).
                 AdFilterHook.installBannerScan(this, null, classLoader, context)
             }.onFailure { L.e(TAG, "Banner scan failed", it) }
-            runCatching {
-                NewsfeedFilterHook.init(context)
-                val feedReady = NewsfeedFilterHook.installCached(this, classLoader, runnableClass)
-                if (!feedReady) {
-                    L.w(TAG, "Cached classic-feed hook invalid — rediscovering next FB start")
-                    MethodCache.invalidateClass(context, "feed.processNewStories")
-                }
-            }.onFailure { L.e(TAG, "Newsfeed filter installation failed", it) }
-            runCatching {
-                AdsOptOutHook.installCached(this, classLoader, adsOptOutClass)
-            }.onFailure { L.e(TAG, "Ads opt-out installation failed", it) }
+            if (runnableClass != "absent") {
+                runCatching {
+                    NewsfeedFilterHook.init(context)
+                    val feedReady = NewsfeedFilterHook.installCached(this, classLoader, runnableClass)
+                    if (!feedReady) {
+                        L.w(TAG, "Cached classic-feed hook invalid — rediscovering next FB start")
+                        MethodCache.invalidateClass(context, "feed.processNewStories")
+                    }
+                }.onFailure { L.e(TAG, "Newsfeed filter installation failed", it) }
+            } else {
+                L.i(TAG, "Newsfeed Runnable anchor not found on this build — skipping")
+            }
+            adsOptOutClass.takeIf { it != "absent" }?.let {
+                runCatching {
+                    AdsOptOutHook.installCached(this, classLoader, it)
+                }.onFailure { L.e(TAG, "Ads opt-out installation failed", it) }
+            }
             MarketplaceAdsHook.installFromCache(this, classLoader, context)
             GameAdsHook.installFromCache(this, classLoader, context)
             FeedGuardHook.installFromCache(this, classLoader, context)
@@ -556,12 +570,16 @@ class ModuleMain : XposedModule() {
             } else {
                 L.i(TAG, "Stories-tray anchor not found on this build — skipping")
             }
-            runCatching {
-                DownloadHook.installCached(this, classLoader, playerClass)
-            }.onFailure { L.e(TAG, "Download hook installation failed", it) }
-            runCatching {
-                DownloadHook.installMediaSetupCached(this, classLoader, mediaSetupClass)
-            }.onFailure { L.e(TAG, "Media-setup hook installation failed", it) }
+            playerClass.takeIf { it != "absent" }?.let {
+                runCatching {
+                    DownloadHook.installCached(this, classLoader, it)
+                }.onFailure { L.e(TAG, "Download hook installation failed", it) }
+            }
+            mediaSetupClass.takeIf { it != "absent" }?.let {
+                runCatching {
+                    DownloadHook.installMediaSetupCached(this, classLoader, it)
+                }.onFailure { L.e(TAG, "Media-setup hook installation failed", it) }
+            }
             L.i(TAG, "Installing contextual hooks from cache: storyState=$contextualStoryState, reelState=$contextualReelState, storyMethods=${methods[ContextualDownloadHook.STORY_CACHE_KEY]?.size}, reelMethods=${methods[ContextualDownloadHook.REEL_CACHE_KEY]?.size}")
             if (contextualStoryState != "absent") {
                 runCatching {
@@ -834,10 +852,13 @@ class ModuleMain : XposedModule() {
                         }
                     },
                     buildMap {
-                        runnableClass?.let { put("feed.processNewStories", it) }
-                        adsOptOutClass?.let { put(AdsOptOutHook.CACHE_KEY, it) }
-                        playerClass?.let { put(DownloadHook.CACHE_KEY, it) }
-                        mediaSetupClass?.let { put(DownloadHook.MEDIA_CACHE_KEY, it) }
+                        // These four are required on the cache-hit path, so a
+                        // NOT_FOUND anchor needs the "absent" sentinel too:
+                        // without it every launch is a miss and rescans.
+                        put("feed.processNewStories", runnableClass ?: "absent")
+                        put(AdsOptOutHook.CACHE_KEY, adsOptOutClass ?: "absent")
+                        put(DownloadHook.CACHE_KEY, playerClass ?: "absent")
+                        put(DownloadHook.MEDIA_CACHE_KEY, mediaSetupClass ?: "absent")
                         put(
                             ContextualDownloadHook.STORY_CACHE_KEY,
                             if (contextualDownloads?.storyMethods != null)
